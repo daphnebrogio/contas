@@ -1,51 +1,79 @@
-/** Ícones padrão de perfil — sem upload, só uma escolha entre um conjunto fixo. */
+/** Ícones padrão de perfil — sem upload, só uma escolha entre um conjunto fixo de animais. */
 export const ICONES: Record<string, JSX.Element> = {
-  estrela: (
+  gato: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      <polygon points="6 9 8 3 11 8" />
+      <polygon points="18 9 16 3 13 8" />
+      <circle cx="12" cy="14" r="7" />
+      <circle cx="9.5" cy="13" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="14.5" cy="13" r="0.6" fill="currentColor" stroke="none" />
+      <path d="M10.5 16c1 .8 2 .8 3 0" />
     </svg>
   ),
-  coracao: (
+  cachorro: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z" />
+      <ellipse cx="4.8" cy="13.5" rx="2.1" ry="4.3" transform="rotate(-18 4.8 13.5)" />
+      <ellipse cx="19.2" cy="13.5" rx="2.1" ry="4.3" transform="rotate(18 19.2 13.5)" />
+      <circle cx="12" cy="13" r="6" />
+      <circle cx="9.5" cy="12" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="14.5" cy="12" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="15.5" r="1" fill="currentColor" stroke="none" />
     </svg>
   ),
-  sol: (
+  coelho: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+      <ellipse cx="9" cy="6" rx="1.5" ry="5" />
+      <ellipse cx="15" cy="6" rx="1.5" ry="5" />
+      <circle cx="12" cy="15" r="6" />
+      <circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="14" cy="14" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="17" r="0.8" fill="currentColor" stroke="none" />
     </svg>
   ),
-  lua: (
+  urso: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
+      <circle cx="7" cy="6" r="2" />
+      <circle cx="17" cy="6" r="2" />
+      <circle cx="12" cy="14" r="8" />
+      <circle cx="9.5" cy="13" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="14.5" cy="13" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="16" r="1" fill="currentColor" stroke="none" />
     </svg>
   ),
-  folha: (
+  raposa: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
-      <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 11 13 12 11" />
+      <polygon points="6 8 8 2 12 7" />
+      <polygon points="18 8 16 2 12 7" />
+      <circle cx="12" cy="13" r="6" />
+      <polygon points="10 17.5 14 17.5 12 20.5" />
+      <circle cx="9.5" cy="12" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="14.5" cy="12" r="0.6" fill="currentColor" stroke="none" />
     </svg>
   ),
-  raio: (
+  coruja: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+      <polygon points="6 4 8.5 8.5 4 8" />
+      <polygon points="18 4 15.5 8.5 20 8" />
+      <circle cx="9" cy="12.5" r="3.5" />
+      <circle cx="15" cy="12.5" r="3.5" />
+      <circle cx="9" cy="12.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="12.5" r="1" fill="currentColor" stroke="none" />
+      <polygon points="11 15.5 13 15.5 12 18" />
     </svg>
   ),
-  cafe: (
+  peixe: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
-      <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
-      <line x1="6" y1="2" x2="6" y2="4" />
-      <line x1="10" y1="2" x2="10" y2="4" />
-      <line x1="14" y1="2" x2="14" y2="4" />
+      <ellipse cx="10" cy="12" rx="7" ry="4" />
+      <polygon points="17 8 22 12 17 16" />
+      <circle cx="6" cy="11" r="0.6" fill="currentColor" stroke="none" />
     </svg>
   ),
-  musica: (
+  passarinho: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 18V5l12-2v13" />
-      <circle cx="6" cy="18" r="3" />
-      <circle cx="18" cy="16" r="3" />
+      <circle cx="10" cy="13" r="6" />
+      <polygon points="16 12 21 13 16 14" />
+      <circle cx="8" cy="11" r="0.6" fill="currentColor" stroke="none" />
+      <path d="M7 19c-2 0-3 1-3 2" />
     </svg>
   ),
 };
