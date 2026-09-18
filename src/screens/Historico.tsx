@@ -42,6 +42,18 @@ export default function Historico() {
     () => meses.map((m) => gastos.filter((g) => g.data_lancamento.startsWith(m)).reduce((s, g) => s + g.valor, 0)),
     [gastos, meses],
   );
+  const totaisPorMesPorPagador = useMemo(
+    () =>
+      meses.map((m) => {
+        const doMes = gastos.filter((g) => g.data_lancamento.startsWith(m));
+        return {
+          daphne: doMes.filter((g) => g.pagador === UID_DAPHNE).reduce((s, g) => s + g.valor, 0),
+          joao: doMes.filter((g) => g.pagador === UID_JOAO).reduce((s, g) => s + g.valor, 0),
+          semPagador: doMes.filter((g) => g.pagador === null).reduce((s, g) => s + g.valor, 0),
+        };
+      }),
+    [gastos, meses],
+  );
   const media = totalPorMes.reduce((s, v) => s + v, 0) / (totalPorMes.length || 1);
   const maiorMes = Math.max(...totalPorMes, 1);
   const mesAtual = meses[meses.length - 1];
@@ -100,21 +112,37 @@ export default function Historico() {
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink2)' }}>GASTO TOTAL POR MÊS</span>
-          <span style={{ fontSize: 12, color: 'var(--ink2)' }}>
-            Média ({meses.length} meses): <span className="money" style={{ fontWeight: 700, color: 'var(--ink)' }}>{formatBRL(media)}</span>
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <span style={{ fontSize: 12, color: 'var(--ink2)', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 9, height: 9, borderRadius: 3, background: 'var(--daphne)', display: 'inline-block' }} />
+              {USUARIOS[UID_DAPHNE].nome}
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--ink2)', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 9, height: 9, borderRadius: 3, background: 'var(--joao)', display: 'inline-block' }} />
+              {USUARIOS[UID_JOAO].nome}
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--ink2)' }}>
+              Média ({meses.length} meses): <span className="money" style={{ fontWeight: 700, color: 'var(--ink)' }}>{formatBRL(media)}</span>
+            </span>
+          </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {meses.map((m, i) => {
             const [, mesNum] = m.split('-').map(Number);
             const atual = m === mesAtual;
+            const { daphne, joao, semPagador } = totaisPorMesPorPagador[i];
+            const opacidade = atual ? 1 : 0.7;
             return (
               <div key={m} style={{ display: 'grid', gridTemplateColumns: '44px 1fr 90px', alignItems: 'center', gap: 12 }}>
                 <span style={{ fontSize: 12, color: 'var(--ink2)', fontWeight: atual ? 700 : 400 }}>{NOME_MES_CURTO[mesNum - 1]}</span>
                 <div style={{ position: 'relative', height: 18, background: 'var(--bg)', borderRadius: 4, overflow: 'visible' }}>
-                  <div style={{ width: `${(totalPorMes[i] / maiorMes) * 100}%`, height: '100%', background: 'var(--accent)', borderRadius: 4, opacity: atual ? 1 : 0.7 }} />
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ width: `${(daphne / maiorMes) * 100}%`, height: '100%', background: 'var(--daphne)', opacity: opacidade }} />
+                    <div style={{ width: `${(joao / maiorMes) * 100}%`, height: '100%', background: 'var(--joao)', opacity: opacidade }} />
+                    <div style={{ width: `${(semPagador / maiorMes) * 100}%`, height: '100%', background: 'var(--ink2)', opacity: opacidade * 0.4 }} />
+                  </div>
                   <div style={{ position: 'absolute', top: -3, bottom: -3, left: `${(media / maiorMes) * 100}%`, width: 1, background: 'var(--ink2)', opacity: 0.6 }} />
                 </div>
                 <span className="money" style={{ fontSize: 12, color: 'var(--ink2)', textAlign: 'right', fontWeight: atual ? 700 : 400 }}>{formatBRL(totalPorMes[i])}</span>
@@ -122,7 +150,7 @@ export default function Historico() {
             );
           })}
         </div>
-        <span style={{ fontSize: 11, color: 'var(--ink2)' }}>Linha tracejada = média do período.</span>
+        <span style={{ fontSize: 11, color: 'var(--ink2)' }}>Linha tracejada = média do período. Cinza = gasto recorrente ainda sem pagador definido.</span>
       </div>
 
       <Link to="/comparativo" className="row-link card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', fontSize: 14, fontWeight: 600 }}>
