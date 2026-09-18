@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { anoMesAtual, calcularSaldo, gerarInstanciasDoMes, subscribeGastosDoMes } from '../lib/gastos';
+import { anoMesAtual, calcularSaldo, gerarInstanciasDoMes, subscribeGastosDoMes, subscribeTodosGastos } from '../lib/gastos';
 import { subscribeSeriesAtivas } from '../lib/series';
+import { subscribeLiquidacoes } from '../lib/liquidacoes';
 import { formatBRL } from '../lib/money';
-import { UID_DAPHNE, UID_JOAO, USUARIOS, type Gasto } from '../types/models';
+import { UID_DAPHNE, UID_JOAO, USUARIOS, type Gasto, type Liquidacao } from '../types/models';
 import Avatar from '../components/Avatar';
 import { useTags } from '../hooks/useTags';
 
@@ -21,6 +22,8 @@ function mudarMes(anoMes: string, delta: number): string {
 export default function Dashboard() {
   const [anoMes, setAnoMes] = useState(anoMesAtual());
   const [gastos, setGastos] = useState<Gasto[]>([]);
+  const [todosGastos, setTodosGastos] = useState<Gasto[]>([]);
+  const [liquidacoes, setLiquidacoes] = useState<Liquidacao[]>([]);
   const tags = useTags();
 
   // Ao abrir o app (mês corrente): gera instâncias de série recorrente que ainda faltam (regra 5.1).
@@ -33,11 +36,14 @@ export default function Dashboard() {
   }, [anoMes]);
 
   useEffect(() => subscribeGastosDoMes(anoMes, setGastos), [anoMes]);
+  useEffect(() => subscribeTodosGastos(setTodosGastos), []);
+  useEffect(() => subscribeLiquidacoes(setLiquidacoes), []);
 
   const total = gastos.reduce((soma, g) => soma + g.valor, 0);
   const totalDaphne = gastos.filter((g) => g.pagador === UID_DAPHNE).reduce((s, g) => s + g.valor, 0);
   const totalJoao = gastos.filter((g) => g.pagador === UID_JOAO).reduce((s, g) => s + g.valor, 0);
-  const saldoDoMes = calcularSaldo(gastos, []).centavos;
+  // Saldo é acumulado desde o início (regra 4), não zera a cada mês — mesma conta do Histórico/Perfil.
+  const saldoAcumulado = calcularSaldo(todosGastos, liquidacoes).centavos;
 
   const [ano, mesNum] = anoMes.split('-').map(Number);
   const nomeMes = `${NOMES_MES[mesNum - 1]} ${ano}`;
@@ -76,16 +82,20 @@ export default function Dashboard() {
           <span style={{ fontSize: 12, color: 'var(--ink2)', fontWeight: 600 }}>{USUARIOS[UID_JOAO].nome.toUpperCase()} PAGOU</span>
           <span className="money" style={{ fontSize: 24, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600 }}>{formatBRL(totalJoao)}</span>
         </div>
-        <div className="card" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, background: 'var(--accent-soft)', border: '1px solid var(--accent)' }}>
-          <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>SALDO DO MÊS</span>
+        <Link
+          to="/historico"
+          className="row-link card"
+          style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, background: 'var(--accent-soft)', border: '1px solid var(--accent)' }}
+        >
+          <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>SALDO ACUMULADO</span>
           <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--accent)' }}>
-            {saldoDoMes === 0
-              ? 'Sem diferença este mês'
-              : saldoDoMes > 0
-                ? `${USUARIOS[UID_JOAO].nome} deve ${formatBRL(saldoDoMes)} a ${USUARIOS[UID_DAPHNE].nome}`
-                : `${USUARIOS[UID_DAPHNE].nome} deve ${formatBRL(-saldoDoMes)} a ${USUARIOS[UID_JOAO].nome}`}
+            {saldoAcumulado === 0
+              ? 'Sem diferença'
+              : saldoAcumulado > 0
+                ? `${USUARIOS[UID_JOAO].nome} deve ${formatBRL(saldoAcumulado)} a ${USUARIOS[UID_DAPHNE].nome}`
+                : `${USUARIOS[UID_DAPHNE].nome} deve ${formatBRL(-saldoAcumulado)} a ${USUARIOS[UID_JOAO].nome}`}
           </span>
-        </div>
+        </Link>
       </div>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
