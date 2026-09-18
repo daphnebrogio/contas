@@ -1,28 +1,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 :root {
-  --bg: #2a3142;
-  --surface: #333b4e;
-  --border: rgba(255, 255, 255, 0.1);
-  --ink: #e6e8f0;
-  --ink2: #9fa6be;
+  --bg: #333c52;
+  --surface: #3e4860;
+  --border: rgba(255, 255, 255, 0.14);
+  --ink: #eef0f6;
+  --ink2: #aeb5cc;
 
-  --accent: #db8b5c;
-  --accent-soft: rgba(219, 139, 92, 0.16);
+  --accent: #df9468;
+  --accent-soft: rgba(223, 148, 104, 0.18);
   --accent-ink: #2a1b10;
   --accent-ink-soft: rgba(42, 27, 16, 0.6);
 
-  --daphne: #a897c7;
-  --daphne-soft: rgba(168, 151, 199, 0.16);
-  --joao: #6fa6be;
-  --joao-soft: rgba(111, 166, 190, 0.16);
+  --daphne: #bba6e0;
+  --daphne-soft: rgba(187, 166, 224, 0.2);
+  --joao: #55b6d9;
+  --joao-soft: rgba(85, 182, 217, 0.2);
 
-  --tag-bg: rgba(255, 255, 255, 0.06);
-  --tag-text: #a7aec5;
-  --pending: #c9a24c;
-  --neg: #c97268;
-  --neg-soft: rgba(201, 114, 104, 0.14);
-  --muted-fill: #4a5266;
+  --tag-bg: rgba(255, 255, 255, 0.09);
+  --tag-text: #bcc2d6;
+  --pending: #d4ad57;
+  --neg: #d37e74;
+  --neg-soft: rgba(211, 126, 116, 0.16);
+  --muted-fill: #565f76;
 }
 
 * {

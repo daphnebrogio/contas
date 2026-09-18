@@ -39,6 +39,7 @@ export default function CadastroGasto() {
 
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -148,9 +149,18 @@ export default function CadastroGasto() {
 
   async function excluir() {
     if (!id || bloqueado) return;
-    if (!confirm('Excluir este gasto?')) return;
-    await excluirGasto(id);
-    navigate('/');
+    if (!confirmandoExclusao) {
+      setConfirmandoExclusao(true);
+      return;
+    }
+    try {
+      await excluirGasto(id);
+      navigate('/');
+    } catch (err) {
+      setErro('Não deu pra excluir — tenta de novo.');
+      console.error(err);
+      setConfirmandoExclusao(false);
+    }
   }
 
   async function encerrarRecorrencia() {
@@ -360,9 +370,21 @@ export default function CadastroGasto() {
 
         {editando && (
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <button type="button" onClick={excluir} disabled={bloqueado} className="btn-text-danger" style={{ alignSelf: 'flex-start', opacity: bloqueado ? 0.5 : 1, cursor: bloqueado ? 'not-allowed' : 'pointer' }}>
-              Excluir gasto
-            </button>
+            {confirmandoExclusao ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>Excluir de vez este gasto?</span>
+                <button type="button" onClick={excluir} className="btn-text-danger">
+                  Sim, excluir
+                </button>
+                <button type="button" onClick={() => setConfirmandoExclusao(false)} className="btn-secondary" style={{ height: 32, padding: '0 14px', fontSize: 13 }}>
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={excluir} disabled={bloqueado} className="btn-text-danger" style={{ alignSelf: 'flex-start', opacity: bloqueado ? 0.5 : 1, cursor: bloqueado ? 'not-allowed' : 'pointer' }}>
+                Excluir gasto
+              </button>
+            )}
             <span style={{ fontSize: 12, color: 'var(--ink2)' }}>
               Só é possível excluir gastos que ainda não fazem parte de uma Liquidação confirmada.
             </span>
