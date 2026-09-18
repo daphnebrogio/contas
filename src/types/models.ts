@@ -86,3 +86,24 @@ export interface Liquidacao {
   data: string; // ISO date
   saldo_antes: number; // centavos — saldo acumulado no momento da liquidação, para auditoria
 }
+
+export type AcaoLog = 'criacao' | 'edicao' | 'exclusao';
+
+/**
+ * Registro de auditoria: quem fez o quê em cada Gasto, com uma cópia do
+ * registro no momento da ação — principalmente pra exclusão, já que depois
+ * de excluído o Gasto original não existe mais pra consultar.
+ */
+export interface LogAlteracao {
+  id: string;
+  uid: string; // quem fez a ação
+  acao: AcaoLog;
+  gasto_id: string;
+  descricao: string;
+  valor: number; // centavos
+  data_lancamento: string;
+  pagador: string | null;
+  status: StatusGasto;
+  tags: string[];
+  criado_em: string; // ISO datetime da própria ação de log
+}

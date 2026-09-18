@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { calcularSaldo, subscribeTodosGastos } from '../lib/gastos';
 import { subscribeLiquidacoes } from '../lib/liquidacoes';
+import { subscribeLogs } from '../lib/logs';
 import { formatBRL } from '../lib/money';
-import { UID_DAPHNE, UID_JOAO, USUARIOS, type Gasto, type Liquidacao } from '../types/models';
+import { UID_DAPHNE, UID_JOAO, USUARIOS, type Gasto, type Liquidacao, type LogAlteracao } from '../types/models';
 import { useTags } from '../hooks/useTags';
 
 function ultimosNMeses(n: number, hoje = new Date()): string[] {
@@ -15,16 +16,52 @@ function ultimosNMeses(n: number, hoje = new Date()): string[] {
   return meses;
 }
 
+function mesesDoTrimestre(ano: number, inicioMes0: number): string[] {
+  return [0, 1, 2].map((i) => `${ano}-${String(inicioMes0 + i + 1).padStart(2, '0')}`);
+}
+
+function trimestreAnteriorE(hoje: Date) {
+  const q0 = Math.floor(hoje.getMonth() / 3) * 3;
+  const atual = mesesDoTrimestre(hoje.getFullYear(), q0);
+
+  let anoAnt = hoje.getFullYear();
+  let q0Ant = q0 - 3;
+  if (q0Ant < 0) {
+    q0Ant += 12;
+    anoAnt -= 1;
+  }
+  const anterior = mesesDoTrimestre(anoAnt, q0Ant);
+  return { atual, anterior };
+}
+
+function rotuloTrimestre(meses: string[]): string {
+  const [ano, m1] = meses[0].split('-').map(Number);
+  const q = Math.ceil(m1 / 3);
+  return `Q${q} ${ano}`;
+}
+
 const NOME_MES_CURTO = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+const ROTULO_ACAO: Record<LogAlteracao['acao'], string> = {
+  criacao: 'criou',
+  edicao: 'editou',
+  exclusao: 'excluiu',
+};
+
+function formatDataHora(iso: string): string {
+  return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
 
 export default function Historico() {
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [liquidacoes, setLiquidacoes] = useState<Liquidacao[]>([]);
+  const [logs, setLogs] = useState<LogAlteracao[]>([]);
   const [tagFiltro, setTagFiltro] = useState<string | null>(null);
   const tags = useTags();
 
   useEffect(() => subscribeTodosGastos(setGastos), []);
   useEffect(() => subscribeLiquidacoes(setLiquidacoes), []);
+  useEffect(() => subscribeLogs(setLogs), []);
 
   const saldo = calcularSaldo(gastos, liquidacoes).centavos;
 
@@ -57,6 +94,31 @@ export default function Historico() {
   const media = totalPorMes.reduce((s, v) => s + v, 0) / (totalPorMes.length || 1);
   const maiorMes = Math.max(...totalPorMes, 1);
   const mesAtual = meses[meses.length - 1];
+
+  const { atual: trimAtual, anterior: trimAnterior } = useMemo(() => trimestreAnteriorE(new Date()), []);
+  const comparativoTrimestral = useMemo(() => {
+    function somaPorTag(meses: string[]) {
+      const mapa = new Map<string, number>();
+      for (const g of gastos) {
+        if (!meses.includes(g.data_lancamento.slice(0, 7))) continue;
+        for (const t of g.tags) mapa.set(t, (mapa.get(t) ?? 0) + g.valor);
+      }
+      return mapa;
+    }
+    const somaAtual = somaPorTag(trimAtual);
+    const somaAnterior = somaPorTag(trimAnterior);
+    const tagIds = new Set([...somaAtual.keys(), ...somaAnterior.keys()]);
+
+    return [...tagIds]
+      .map((tagId) => {
+        const valorAtual = somaAtual.get(tagId) ?? 0;
+        const valorAnterior = somaAnterior.get(tagId) ?? 0;
+        const variacao = valorAnterior === 0 ? null : ((valorAtual - valorAnterior) / valorAnterior) * 100;
+        return { tagId, valorAtual, valorAnterior, variacao };
+      })
+      .sort((a, b) => b.valorAtual - a.valorAtual);
+  }, [gastos, trimAtual, trimAnterior]);
+  const maiorTrimestre = Math.max(...comparativoTrimestral.flatMap((l) => [l.valorAtual, l.valorAnterior]), 1);
 
   const timeline = useMemo(
     () =>
@@ -153,10 +215,49 @@ export default function Historico() {
         <span style={{ fontSize: 11, color: 'var(--ink2)' }}>Linha tracejada = média do período. Cinza = gasto recorrente ainda sem pagador definido.</span>
       </div>
 
-      <Link to="/comparativo" className="row-link card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', fontSize: 14, fontWeight: 600 }}>
-        Ver comparativo trimestral
-        <IconChevronRight />
-      </Link>
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink2)' }}>COMPARATIVO TRIMESTRAL POR CATEGORIA</span>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center', fontSize: 12, color: 'var(--ink2)' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 3, background: 'var(--muted-fill)' }} /> {rotuloTrimestre(trimAnterior)}
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 3, background: 'var(--accent)' }} /> {rotuloTrimestre(trimAtual)}
+            </span>
+          </div>
+        </div>
+        {comparativoTrimestral.length === 0 && <span style={{ fontSize: 13, color: 'var(--ink2)' }}>Sem dados suficientes ainda pra comparar.</span>}
+        {comparativoTrimestral.map((l) => (
+          <div key={l.tagId} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{tagNome(l.tagId)}</span>
+              {l.variacao !== null && (
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: '3px 10px',
+                    borderRadius: 999,
+                    color: l.variacao > 0 ? 'var(--neg)' : 'var(--accent)',
+                    background: l.variacao > 0 ? 'var(--neg-soft)' : 'var(--accent-soft)',
+                  }}
+                >
+                  {l.variacao > 0 ? '↑' : '↓'} {Math.abs(Math.round(l.variacao))}%
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <div style={{ width: `${(l.valorAnterior / maiorTrimestre) * 100}%`, height: 20, background: 'var(--muted-fill)', borderRadius: 4, minWidth: 2 }} />
+              <span className="money" style={{ fontSize: 12, color: 'var(--ink2)', width: 90 }}>{formatBRL(l.valorAnterior)}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <div style={{ width: `${(l.valorAtual / maiorTrimestre) * 100}%`, height: 20, background: 'var(--accent)', borderRadius: 4, minWidth: 2 }} />
+              <span className="money" style={{ fontSize: 12, color: 'var(--ink2)', width: 90 }}>{formatBRL(l.valorAtual)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
 
       <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
         <div className="card" style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -186,14 +287,26 @@ export default function Historico() {
           ))}
         </div>
       </div>
-    </div>
-  );
-}
 
-function IconChevronRight() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink2)' }}>LOG DE ALTERAÇÕES</span>
+        {logs.length === 0 && <span style={{ fontSize: 13, color: 'var(--ink2)' }}>Nenhuma alteração registrada ainda.</span>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 320, overflowY: 'auto' }}>
+          {logs.map((l) => (
+            <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, fontSize: 13 }}>
+              <span>
+                <strong style={{ color: l.acao === 'exclusao' ? 'var(--neg)' : 'var(--ink)' }}>{USUARIOS[l.uid]?.nome ?? '?'}</strong>{' '}
+                {ROTULO_ACAO[l.acao]} <em style={{ fontStyle: 'normal', fontWeight: 600 }}>{l.descricao}</em>
+                {' · '}
+                <span className="money">{formatBRL(l.valor)}</span>
+                {' · '}
+                <span style={{ color: 'var(--ink2)' }}>{new Date(l.data_lancamento + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--ink2)', whiteSpace: 'nowrap' }}>{formatDataHora(l.criado_em)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

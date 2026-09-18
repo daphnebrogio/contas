@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   orderBy,
@@ -10,8 +11,9 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
-import { db } from './firebase';
-import { UID_DAPHNE, UID_JOAO, type Gasto, type SerieRecorrente } from '../types/models';
+import { auth, db } from './firebase';
+import { registrarLog } from './logs';
+import { UID_DAPHNE, UID_JOAO, type AcaoLog, type Gasto, type SerieRecorrente } from '../types/models';
 
 const gastosRef = collection(db, 'gastos');
 
@@ -41,16 +43,44 @@ export function subscribeTodosGastos(cb: (gastos: Gasto[]) => void) {
 
 type NovoGasto = Omit<Gasto, 'id' | 'bloqueado_para_edicao'>;
 
-export async function criarGasto(dados: NovoGasto) {
-  await addDoc(gastosRef, { ...dados, bloqueado_para_edicao: false });
+async function logarGasto(acao: AcaoLog, gasto: Pick<Gasto, 'id' | 'descricao' | 'valor' | 'data_lancamento' | 'pagador' | 'status' | 'tags'>) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return;
+  await registrarLog(uid, acao, gasto);
+}
+
+/**
+ * `log: false` é usado só pela geração automática de instâncias recorrentes
+ * (regra 5.1) — não é uma ação de um dos dois, então não deve aparecer no
+ * log de alterações como se alguém tivesse feito.
+ */
+export async function criarGasto(dados: NovoGasto, opcoes: { log?: boolean } = {}) {
+  const ref = await addDoc(gastosRef, { ...dados, bloqueado_para_edicao: false });
+  if (opcoes.log !== false) await logarGasto('criacao', { id: ref.id, ...dados });
+  return ref;
 }
 
 export async function atualizarGasto(id: string, mudancas: Partial<NovoGasto>) {
   await updateDoc(doc(db, 'gastos', id), mudancas);
+  const snap = await getDoc(doc(db, 'gastos', id));
+  if (snap.exists()) {
+    const g = { id: snap.id, ...(snap.data() as Omit<Gasto, 'id'>) };
+    await logarGasto('edicao', g);
+  }
 }
 
+/**
+ * Exclusão é permitida pra qualquer gasto, inclusive já liquidado — em
+ * troca, fica sempre registrada no log de alterações (com uma cópia do
+ * gasto, já que depois de excluído ele não existe mais pra consultar).
+ */
 export async function excluirGasto(id: string) {
+  const snap = await getDoc(doc(db, 'gastos', id));
   await deleteDoc(doc(db, 'gastos', id));
+  if (snap.exists()) {
+    const g = { id: snap.id, ...(snap.data() as Omit<Gasto, 'id'>) };
+    await logarGasto('exclusao', g);
+  }
 }
 
 /**
@@ -90,7 +120,7 @@ export async function gerarInstanciasDoMes(series: SerieRecorrente[], hoje = new
       data_pagamento: null,
       comprovante_url: null,
     };
-    await criarGasto(novoGasto);
+    await criarGasto(novoGasto, { log: false });
     await updateDoc(doc(db, 'series_recorrentes', serie.id), { ultima_instancia_gerada: anoMes });
   }
 }

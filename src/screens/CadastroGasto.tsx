@@ -152,7 +152,7 @@ export default function CadastroGasto() {
   }
 
   async function excluir() {
-    if (!id || bloqueado) return;
+    if (!id) return;
     if (!confirmandoExclusao) {
       setConfirmandoExclusao(true);
       return;
@@ -385,12 +385,14 @@ export default function CadastroGasto() {
                 </button>
               </div>
             ) : (
-              <button type="button" onClick={excluir} disabled={bloqueado} className="btn-text-danger" style={{ alignSelf: 'flex-start', opacity: bloqueado ? 0.5 : 1, cursor: bloqueado ? 'not-allowed' : 'pointer' }}>
+              <button type="button" onClick={excluir} className="btn-text-danger" style={{ alignSelf: 'flex-start' }}>
                 Excluir gasto
               </button>
             )}
             <span style={{ fontSize: 12, color: 'var(--ink2)' }}>
-              Só é possível excluir gastos que ainda não fazem parte de uma Liquidação confirmada.
+              {bloqueado
+                ? 'Esse gasto já faz parte de uma Liquidação confirmada — excluir não recalcula o saldo daquela liquidação. Fica registrado em Histórico → Log de alterações, com o que era e quem excluiu.'
+                : 'Fica registrado em Histórico → Log de alterações, com o que era e quem excluiu.'}
             </span>
           </div>
         )}

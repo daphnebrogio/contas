@@ -32,11 +32,19 @@ service cloud.firestore {
       allow read, create: if isCasal();
       allow update: if isCasal() &&
         (resource.data.bloqueado_para_edicao != true || apenasComprovanteMudou());
-      allow delete: if isCasal() && resource.data.bloqueado_para_edicao != true;
+      // Exclusão liberada pra qualquer gasto, inclusive já liquidado — em
+      // troca, o cliente sempre grava uma linha em /logs antes de apagar.
+      allow delete: if isCasal();
     }
 
     match /liquidacoes/{liquidacaoId} {
       // registro de auditoria: depois de criado, não muda nem apaga.
+      allow read, create: if isCasal();
+      allow update, delete: if false;
+    }
+
+    match /logs/{logId} {
+      // log de alterações: só cria e lê, nunca edita ou apaga (senão não seria auditoria).
       allow read, create: if isCasal();
       allow update, delete: if false;
     }
