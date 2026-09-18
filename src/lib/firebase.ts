@@ -1,11 +1,13 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
 
 // Config do Firebase — não é segredo (identifica o projeto, não autentica
-// acesso; a segurança real vem das regras do Firestore/Storage), por isso
-// fica comitada direto no repo em vez de .env.
+// acesso; a segurança real vem das regras do Firestore), por isso fica
+// comitada direto no repo em vez de .env.
+// Sem Cloud Storage: exige plano Blaze (cartão cadastrado), então o
+// comprovante de pagamento é um link colado (Google Fotos/Drive), não
+// upload — ver comprovante_url em src/types/models.ts.
 const firebaseConfig = {
   apiKey: 'AIzaSyAo_C4DDPqc4zpKGkIit64y9P2QQBJ-R5c',
   authDomain: 'contas-a-dois-1e084.firebaseapp.com',
@@ -19,4 +21,3 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const storage = getStorage(app);
