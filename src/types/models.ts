@@ -2,6 +2,11 @@
 export const UID_DAPHNE = '8WaJbLFwaXPzRGO30QYr3RjLL9E2';
 export const UID_JOAO = 'MrWON54UtMNsO6mLSTmShm3QiGz2';
 
+export const USUARIOS: Record<string, { nome: string }> = {
+  [UID_DAPHNE]: { nome: 'Daphne' },
+  [UID_JOAO]: { nome: 'João' },
+};
+
 export interface Usuario {
   id: string; // uid do Firebase Auth
   nome: string;
@@ -11,12 +16,29 @@ export interface Usuario {
 export type TipoGasto = 'recorrente' | 'pontual';
 export type StatusGasto = 'pendente' | 'pago';
 
+/**
+ * A definição de uma despesa recorrente (aluguel, internet...). Não é um
+ * lançamento em si — é o "molde" a partir do qual instâncias mensais de
+ * Gasto são geradas. Separado de Gasto porque o pagador de cada mês varia
+ * e não faz sentido morar na definição da série.
+ */
+export interface SerieRecorrente {
+  id: string;
+  descricao: string;
+  tags: string[]; // ids de Tag
+  valor_sugerido: number; // centavos — default ao gerar, sempre editável na instância
+  dia_vencimento: number; // 1-31
+  data_inicio: string; // ISO date — a partir de quando passou a existir
+  data_fim: string | null; // null = ativa; ISO date = não gera mais instâncias a partir daqui
+}
+
 export interface Gasto {
   id: string;
-  valor: number;
+  valor: number; // centavos
   descricao: string;
   tags: string[]; // ids de Tag
   tipo: TipoGasto;
+  serie_id: string | null; // referência à SerieRecorrente, só se tipo === 'recorrente'
 
   /**
    * Quem pagou. Obrigatório quando status === 'pago'; pode ser null
@@ -26,10 +48,6 @@ export interface Gasto {
   pagador: string | null; // uid
 
   data_lancamento: string; // ISO date (competência — impacta o saldo mesmo pendente)
-  data_vencimento: string | null; // só se recorrente
-  data_fim_recorrencia: string | null; // só se recorrente
-  valor_sugerido: number | null; // só se recorrente
-
   status: StatusGasto;
   data_pagamento: string | null; // só quando status === 'pago'
 
@@ -55,7 +73,7 @@ export interface Tag {
 export interface Liquidacao {
   id: string;
   pagador: string; // uid de quem fez o Pix
-  valor: number;
+  valor: number; // centavos
   data: string; // ISO date
-  saldo_antes: number; // saldo acumulado no momento da liquidação, para auditoria
+  saldo_antes: number; // centavos — saldo acumulado no momento da liquidação, para auditoria
 }

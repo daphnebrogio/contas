@@ -24,6 +24,10 @@ service cloud.firestore {
       allow read, write: if isCasal();
     }
 
+    match /series_recorrentes/{serieId} {
+      allow read, write: if isCasal();
+    }
+
     match /gastos/{gastoId} {
       allow read, create: if isCasal();
       allow update: if isCasal() &&
