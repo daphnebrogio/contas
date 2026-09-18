@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { atualizarGasto, criarGasto, excluirGasto } from '../lib/gastos';
-import { criarSerie, encerrarSerie, reabrirSerie } from '../lib/series';
+import { criarSerie, encerrarSerie, marcarInstanciaGerada, reabrirSerie } from '../lib/series';
 import { criarTag } from '../lib/tags';
 import { useTags } from '../hooks/useTags';
 import MoneyInput from '../components/MoneyInput';
@@ -116,6 +116,7 @@ export default function CadastroGasto() {
           dia_vencimento: diaVencimento,
           data_inicio: dataLancamento,
           data_fim: null,
+          ultima_instancia_gerada: null,
         });
         serieIdParaGasto = novaSerie.id;
       }
@@ -137,6 +138,9 @@ export default function CadastroGasto() {
         await atualizarGasto(id, dadosGasto);
       } else {
         await criarGasto(dadosGasto);
+        if (tipo === 'recorrente' && serieIdParaGasto) {
+          await marcarInstanciaGerada(serieIdParaGasto, dataLancamento.slice(0, 7));
+        }
       }
       navigate('/');
     } catch (err) {

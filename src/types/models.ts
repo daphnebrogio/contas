@@ -30,6 +30,15 @@ export interface SerieRecorrente {
   dia_vencimento: number; // 1-31
   data_inicio: string; // ISO date — a partir de quando passou a existir
   data_fim: string | null; // null = ativa; ISO date = não gera mais instâncias a partir daqui
+
+  /**
+   * "YYYY-MM" do último mês em que uma instância já foi criada pra essa
+   * série (na criação da série ou pela geração automática). Controla a
+   * geração automática por marcação, não por existência do Gasto — assim,
+   * se o usuário excluir a instância do mês, ela não "renasce" sozinha da
+   * próxima vez que o app abrir.
+   */
+  ultima_instancia_gerada: string | null;
 }
 
 export interface Gasto {

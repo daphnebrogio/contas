@@ -17,6 +17,11 @@ export async function criarSerie(dados: Omit<SerieRecorrente, 'id'>) {
   return addDoc(seriesRef, dados);
 }
 
+/** Marca o mês em que uma instância foi gerada/criada pra essa série (regra 5.1). */
+export async function marcarInstanciaGerada(id: string, anoMes: string) {
+  await updateDoc(doc(db, 'series_recorrentes', id), { ultima_instancia_gerada: anoMes });
+}
+
 /** Encerra a recorrência a partir de hoje — não apaga, só para de gerar novas instâncias (regra 5.1). */
 export async function encerrarSerie(id: string, dataFim = new Date().toISOString().slice(0, 10)) {
   await updateDoc(doc(db, 'series_recorrentes', id), { data_fim: dataFim });

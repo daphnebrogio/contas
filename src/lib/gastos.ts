@@ -55,15 +55,24 @@ export async function excluirGasto(id: string) {
 
 /**
  * Ao abrir o app: pra cada série recorrente ativa, gera a instância do mês
- * corrente se ainda não existir (regra 5.1). Idempotente — seguro chamar
- * toda vez que o app abre.
+ * corrente se a série ainda não tiver uma marcada pra esse mês (regra 5.1).
+ * Marcado por `ultima_instancia_gerada`, não só pela existência do Gasto —
+ * se o usuário excluir a instância, ela não deve ser recriada sozinha na
+ * próxima vez que o app abrir. (Série antiga sem a marca ainda: se já
+ * existir uma instância desse mês, só faz o backfill da marca, sem
+ * duplicar.) Idempotente — seguro chamar toda vez.
  */
 export async function gerarInstanciasDoMes(series: SerieRecorrente[], hoje = new Date()) {
   const anoMes = anoMesAtual(hoje);
   for (const serie of series) {
+    if (serie.ultima_instancia_gerada === anoMes) continue;
+
     const existentes = await getDocs(query(gastosRef, where('serie_id', '==', serie.id)));
-    const jaGerado = existentes.docs.some((d) => (d.data().data_lancamento as string).startsWith(anoMes));
-    if (jaGerado) continue;
+    const jaExiste = existentes.docs.some((d) => (d.data().data_lancamento as string).startsWith(anoMes));
+    if (jaExiste) {
+      await updateDoc(doc(db, 'series_recorrentes', serie.id), { ultima_instancia_gerada: anoMes });
+      continue;
+    }
 
     const ultimoDiaDoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
     const dia = Math.min(serie.dia_vencimento, ultimoDiaDoMes);
@@ -82,6 +91,7 @@ export async function gerarInstanciasDoMes(series: SerieRecorrente[], hoje = new
       comprovante_url: null,
     };
     await criarGasto(novoGasto);
+    await updateDoc(doc(db, 'series_recorrentes', serie.id), { ultima_instancia_gerada: anoMes });
   }
 }
 
