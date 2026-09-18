@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { mesclarTags, renomearTag } from '../lib/tags';
+import { criarTag, mesclarTags, renomearTag } from '../lib/tags';
 import { useTags } from '../hooks/useTags';
 import { subscribeTodosGastos } from '../lib/gastos';
 import type { Gasto } from '../types/models';
@@ -14,10 +14,28 @@ export default function Tags() {
     return mapa;
   }, [gastos]);
   const [busca, setBusca] = useState('');
+  const [novaTag, setNovaTag] = useState('');
+  const [criando, setCriando] = useState(false);
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nomeEdicao, setNomeEdicao] = useState('');
   const [mesclando, setMesclando] = useState(false);
+
+  async function criar() {
+    const nome = novaTag.trim();
+    if (!nome) return;
+    if (tags.some((t) => t.nome.toLowerCase() === nome.toLowerCase())) {
+      setNovaTag('');
+      return;
+    }
+    setCriando(true);
+    try {
+      await criarTag(nome);
+      setNovaTag('');
+    } finally {
+      setCriando(false);
+    }
+  }
 
   const filtradas = tags.filter((t) => t.nome.toLowerCase().includes(busca.toLowerCase()));
 
@@ -59,6 +77,21 @@ export default function Tags() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <h2 style={{ fontSize: 24 }}>Gerenciar tags</h2>
         <input type="text" placeholder="Buscar tag..." className="input" style={{ width: 240 }} value={busca} onChange={(e) => setBusca(e.target.value)} />
+      </div>
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <input
+          type="text"
+          placeholder="Nome da nova tag"
+          className="input"
+          style={{ maxWidth: 300 }}
+          value={novaTag}
+          onChange={(e) => setNovaTag(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), criar())}
+        />
+        <button onClick={criar} disabled={!novaTag.trim() || criando} className="btn-primary" style={{ whiteSpace: 'nowrap' }}>
+          {criando ? 'Criando…' : '+ Nova tag'}
+        </button>
       </div>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
