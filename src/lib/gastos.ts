@@ -91,16 +91,24 @@ export interface Saldo {
 }
 
 /**
- * Regra 4: saldo(A) = Σ gastos pagos por A − Σ gastos pagos por B − Σ liquidações (com sinal por pagador).
+ * Regra 4, divisão 50/50: cada gasto conta só pela METADE pro saldo — quem
+ * pagou só adiantou a parte do outro, não o gasto inteiro. (A diferença
+ * bruta Σ pago por A − Σ pago por B é o DOBRO do valor que deveria ser
+ * transferido pra equalizar; dividir por 2 é o que faz Σ contribuições de
+ * A === Σ contribuições de B no fim.)
+ * Liquidação entra pelo valor cheio — é transferência real de dinheiro,
+ * não rateio.
  * Gastos com pagador null (recorrente ainda não reivindicado por ninguém)
  * não entram — não há de quem atribuir a contribuição até alguém pagar.
  */
 export function calcularSaldo(gastos: Gasto[], liquidacoesValores: { pagador: string; valor: number }[]): Saldo {
-  let centavos = 0;
+  let diferencaGastos = 0;
   for (const g of gastos) {
-    if (g.pagador === UID_DAPHNE) centavos += g.valor;
-    else if (g.pagador === UID_JOAO) centavos -= g.valor;
+    if (g.pagador === UID_DAPHNE) diferencaGastos += g.valor;
+    else if (g.pagador === UID_JOAO) diferencaGastos -= g.valor;
   }
+
+  let centavos = Math.round(diferencaGastos / 2);
   for (const l of liquidacoesValores) {
     if (l.pagador === UID_DAPHNE) centavos += l.valor;
     else if (l.pagador === UID_JOAO) centavos -= l.valor;
