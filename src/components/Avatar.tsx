@@ -1,12 +1,17 @@
+import { cloneElement } from 'react';
 import { UID_DAPHNE, USUARIOS } from '../types/models';
+import { ICONES } from '../lib/icones';
+import { useUsuarios } from '../hooks/useUsuarios';
 
 interface Props {
   uid: string | null;
   size?: number;
 }
 
-/** Bolinha com a inicial da pessoa, cor por identidade (Daphne/João) — ou "–" tracejado se ainda não definido. */
+/** Bolinha com o ícone escolhido (ou a inicial, se não escolheu nenhum) — cor por identidade — ou "–" tracejado se ainda não definido. */
 export default function Avatar({ uid, size = 26 }: Props) {
+  const perfis = useUsuarios();
+
   if (!uid) {
     return (
       <span
@@ -28,10 +33,12 @@ export default function Avatar({ uid, size = 26 }: Props) {
 
   const nome = USUARIOS[uid]?.nome ?? '?';
   const cor = uid === UID_DAPHNE ? 'var(--daphne)' : 'var(--joao)';
+  const icone = perfis[uid]?.icone;
+  const svgIcone = icone ? ICONES[icone] : null;
 
   return (
     <span className="avatar" style={{ width: size, height: size, background: cor, fontSize: size * 0.46 }}>
-      {nome.charAt(0).toUpperCase()}
+      {svgIcone ? cloneElement(svgIcone, { width: size * 0.55, height: size * 0.55 }) : nome.charAt(0).toUpperCase()}
     </span>
   );
 }
