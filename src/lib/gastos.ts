@@ -43,10 +43,21 @@ export function subscribeTodosGastos(cb: (gastos: Gasto[]) => void) {
 
 type NovoGasto = Omit<Gasto, 'id' | 'bloqueado_para_edicao'>;
 
+/**
+ * O log é auditoria complementar, não pode derrubar a ação principal: se a
+ * gravação do log falhar por qualquer motivo (ex.: regras do Firestore
+ * ainda não republicadas), o gasto já foi criado/editado/excluído de
+ * verdade — reportar erro aqui enganaria o usuário a tentar de novo e
+ * duplicar o lançamento.
+ */
 async function logarGasto(acao: AcaoLog, gasto: Pick<Gasto, 'id' | 'descricao' | 'valor' | 'data_lancamento' | 'pagador' | 'status' | 'tags'>) {
   const uid = auth.currentUser?.uid;
   if (!uid) return;
-  await registrarLog(uid, acao, gasto);
+  try {
+    await registrarLog(uid, acao, gasto);
+  } catch (err) {
+    console.error('Falha ao gravar log de alterações (ação principal já concluída):', err);
+  }
 }
 
 /**
