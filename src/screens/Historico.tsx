@@ -26,11 +26,6 @@ function rotuloMesRef(anoMes: string): string {
   return `${NOME_MES_CURTO[mes - 1].toLowerCase()}/${ano}`;
 }
 
-function rotuloMesCurto(anoMes: string): string {
-  const mes = Number(anoMes.split('-')[1]);
-  return NOME_MES_CURTO[mes - 1].toUpperCase();
-}
-
 const ROTULO_ACAO: Record<LogAlteracao['acao'], string> = {
   criacao: 'criou',
   edicao: 'editou',
@@ -100,31 +95,7 @@ export default function Historico() {
   const media = totalPorMes.reduce((s, v) => s + v, 0) / (totalPorMes.length || 1);
   const maiorMes = Math.max(...totalPorMes, 1);
   const mesAtual = meses[meses.length - 1];
-  const mesAnterior = meses[meses.length - 2];
 
-  const comparativoMensal = useMemo(() => {
-    function somaPorTag(mes: string) {
-      const mapa = new Map<string, number>();
-      for (const g of gastosFiltrados) {
-        if (mesDe(g) !== mes) continue;
-        for (const t of g.tags) mapa.set(t, (mapa.get(t) ?? 0) + g.valor);
-      }
-      return mapa;
-    }
-    const somaAtual = somaPorTag(mesAtual);
-    const somaAnterior = somaPorTag(mesAnterior);
-    const tagIds = [...new Set([...somaAtual.keys(), ...somaAnterior.keys()])].filter((id) => filtro.length === 0 || filtro.includes(id));
-
-    return tagIds
-      .map((tagId) => {
-        const valorAtual = somaAtual.get(tagId) ?? 0;
-        const valorAnterior = somaAnterior.get(tagId) ?? 0;
-        const variacao = valorAnterior === 0 ? null : ((valorAtual - valorAnterior) / valorAnterior) * 100;
-        return { tagId, valorAtual, valorAnterior, variacao };
-      })
-      .sort((a, b) => b.valorAtual - a.valorAtual);
-  }, [gastosFiltrados, filtro, mesAtual, mesAnterior]);
-  const maiorComparativo = Math.max(...comparativoMensal.flatMap((l) => [l.valorAtual, l.valorAnterior]), 1);
 
   const timeline = useMemo(
     () =>
@@ -201,52 +172,6 @@ export default function Historico() {
         <span style={{ fontSize: 11, color: 'var(--ink2)' }}>Linha tracejada = média do período. Cinza = gasto sem pagador definido.</span>
       </div>
 
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink2)' }}>COMPARATIVO POR CATEGORIA</span>
-        </div>
-        {comparativoMensal.length === 0 && <span style={{ fontSize: 13, color: 'var(--ink2)' }}>Sem dados suficientes ainda pra comparar.</span>}
-        {comparativoMensal.map((l) => {
-          const { nome, cor } = infoTag(l.tagId);
-          return (
-            <div key={l.tagId} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className="tag-dot" style={{ background: cor }} />
-                  {nome}
-                </span>
-                {l.variacao !== null && (
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      padding: '3px 10px',
-                      borderRadius: 999,
-                      color: l.variacao > 0 ? 'var(--neg)' : 'var(--accent)',
-                      background: l.variacao > 0 ? 'var(--neg-soft)' : 'var(--accent-soft)',
-                    }}
-                  >
-                    {l.variacao > 0 ? '↑' : '↓'} {Math.abs(Math.round(l.variacao))}%
-                  </span>
-                )}
-              </div>
-              {[
-                { rotulo: rotuloMesCurto(mesAnterior), valor: l.valorAnterior, opacidade: 0.4 },
-                { rotulo: rotuloMesCurto(mesAtual), valor: l.valorAtual, opacidade: 1 },
-              ].map((barra) => (
-                <div key={barra.rotulo} style={{ display: 'grid', gridTemplateColumns: '34px 1fr 90px', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink2)', letterSpacing: 0.4 }}>{barra.rotulo}</span>
-                  <div style={{ height: 20 }}>
-                    <div style={{ width: `${(barra.valor / maiorComparativo) * 100}%`, height: '100%', background: cor, opacity: barra.opacidade, borderRadius: 4, minWidth: 2 }} />
-                  </div>
-                  <span className="money" style={{ fontSize: 12, color: 'var(--ink2)', textAlign: 'right' }}>{formatBRL(barra.valor)}</span>
-                </div>
-              ))}
-            </div>
-          );
-        })}
-      </div>
-
       <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
         <div className="card" style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink2)' }}>VALORES AGREGADOS POR CATEGORIA</span>
@@ -274,7 +199,13 @@ export default function Historico() {
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink2)' }}>LINHA DO TEMPO</span>
           {timeline.length === 0 && <span style={{ fontSize: 13, color: 'var(--ink2)' }}>Nada por aqui ainda.</span>}
           {timeline.map((g) => (
-            <div key={g.id} style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
+            <Link
+              key={g.id}
+              to={`/gastos/${g.id}`}
+              state={{ voltarPara: '/historico' }}
+              className="row-link"
+              style={{ display: 'flex', gap: 10, alignItems: 'stretch', padding: '6px 8px', margin: '-6px -8px', borderRadius: 8 }}
+            >
               <div style={{ width: 4, borderRadius: 2, overflow: 'hidden', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
                 {(g.tags.length > 0 ? g.tags : [null]).map((t, i) => (
                   <div key={i} style={{ flex: 1, background: t ? infoTag(t).cor : COR_SEM_TAG }} />
@@ -284,7 +215,7 @@ export default function Historico() {
                 <span>{g.descricao} · {g.pagador ? USUARIOS[g.pagador].nome : '—'}</span>
                 <span className="money" style={{ fontWeight: 600 }}>{formatBRL(g.valor)}</span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>

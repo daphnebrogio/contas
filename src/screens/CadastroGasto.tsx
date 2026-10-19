@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { anoMesAtual, atualizarGasto, criarGasto, excluirGasto } from '../lib/gastos';
@@ -17,6 +17,7 @@ export default function CadastroGasto() {
   const { id } = useParams();
   const editando = Boolean(id);
   const navigate = useNavigate();
+  const destino = (useLocation().state as { voltarPara?: string } | null)?.voltarPara ?? '/';
   const tags = useTags();
 
   const [carregado, setCarregado] = useState(!editando);
@@ -103,7 +104,7 @@ export default function CadastroGasto() {
       } else {
         await criarGasto({ ...campos, data_lancamento: hoje() });
       }
-      navigate('/');
+      navigate(destino);
     } catch (err) {
       setErro('Não deu pra salvar — tenta de novo.');
       console.error(err);
@@ -126,7 +127,7 @@ export default function CadastroGasto() {
     }
     try {
       await excluirGasto(id);
-      navigate('/');
+      navigate(destino);
     } catch (err) {
       setErro('Não deu pra excluir — tenta de novo.');
       console.error(err);
@@ -140,7 +141,7 @@ export default function CadastroGasto() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22, maxWidth: 760 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h2 style={{ fontSize: 24 }}>{editando ? 'Editar gasto' : 'Novo gasto'}</h2>
-        <button aria-label="Fechar" className="icon-btn" onClick={() => navigate('/')}>
+        <button aria-label="Fechar" className="icon-btn" onClick={() => navigate(destino)}>
           <IconClose />
         </button>
       </div>
@@ -282,7 +283,7 @@ export default function CadastroGasto() {
               {salvando ? 'Salvando…' : 'Salvar gasto'}
             </button>
           )}
-          <button type="button" onClick={() => navigate('/')} className="btn-secondary">
+          <button type="button" onClick={() => navigate(destino)} className="btn-secondary">
             Cancelar
           </button>
         </div>
