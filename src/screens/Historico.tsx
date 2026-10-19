@@ -20,9 +20,9 @@ function ultimosNMeses(n: number, hoje = new Date()): string[] {
 
 const NOME_MES_CURTO = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-function rotuloMes(anoMes: string): string {
-  const [ano, mes] = anoMes.split('-').map(Number);
-  return `${NOME_MES_CURTO[mes - 1]} ${ano}`;
+function rotuloMesCurto(anoMes: string): string {
+  const mes = Number(anoMes.split('-')[1]);
+  return NOME_MES_CURTO[mes - 1].toUpperCase();
 }
 
 const ROTULO_ACAO: Record<LogAlteracao['acao'], string> = {
@@ -189,14 +189,6 @@ export default function Historico() {
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink2)' }}>COMPARATIVO POR CATEGORIA</span>
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center', fontSize: 12, color: 'var(--ink2)' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: 'var(--ink2)', opacity: 0.4 }} /> {rotuloMes(mesAnterior)}
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: 'var(--ink2)' }} /> {rotuloMes(mesAtual)}
-            </span>
-          </div>
         </div>
         {comparativoMensal.length === 0 && <span style={{ fontSize: 13, color: 'var(--ink2)' }}>Sem dados suficientes ainda pra comparar.</span>}
         {comparativoMensal.map((l) => {
@@ -223,14 +215,18 @@ export default function Historico() {
                   </span>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <div style={{ width: `${(l.valorAnterior / maiorComparativo) * 100}%`, height: 20, background: cor, opacity: 0.4, borderRadius: 4, minWidth: 2 }} />
-                <span className="money" style={{ fontSize: 12, color: 'var(--ink2)', width: 90 }}>{formatBRL(l.valorAnterior)}</span>
-              </div>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <div style={{ width: `${(l.valorAtual / maiorComparativo) * 100}%`, height: 20, background: cor, borderRadius: 4, minWidth: 2 }} />
-                <span className="money" style={{ fontSize: 12, color: 'var(--ink2)', width: 90 }}>{formatBRL(l.valorAtual)}</span>
-              </div>
+              {[
+                { rotulo: rotuloMesCurto(mesAnterior), valor: l.valorAnterior, opacidade: 0.4 },
+                { rotulo: rotuloMesCurto(mesAtual), valor: l.valorAtual, opacidade: 1 },
+              ].map((barra) => (
+                <div key={barra.rotulo} style={{ display: 'grid', gridTemplateColumns: '34px 1fr 90px', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink2)', letterSpacing: 0.4 }}>{barra.rotulo}</span>
+                  <div style={{ height: 20 }}>
+                    <div style={{ width: `${(barra.valor / maiorComparativo) * 100}%`, height: '100%', background: cor, opacity: barra.opacidade, borderRadius: 4, minWidth: 2 }} />
+                  </div>
+                  <span className="money" style={{ fontSize: 12, color: 'var(--ink2)', textAlign: 'right' }}>{formatBRL(barra.valor)}</span>
+                </div>
+              ))}
             </div>
           );
         })}
