@@ -6,8 +6,9 @@ import { formatBRL } from '../lib/money';
 import MoneyInput from '../components/MoneyInput';
 import Avatar from '../components/Avatar';
 import { UID_DAPHNE, UID_JOAO, USUARIOS, type Gasto, type Liquidacao } from '../types/models';
+import { dataLocalISO } from '../lib/datas';
 
-const hoje = () => new Date().toISOString().slice(0, 10);
+const hoje = () => dataLocalISO();
 
 export default function LiquidacaoScreen() {
   const navigate = useNavigate();

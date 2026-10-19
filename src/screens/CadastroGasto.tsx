@@ -5,12 +5,13 @@ import { db } from '../lib/firebase';
 import { atualizarGasto, criarGasto, excluirGasto } from '../lib/gastos';
 import { criarTag } from '../lib/tags';
 import { proximaCorLivre } from '../lib/cores';
+import { dataLocalISO } from '../lib/datas';
 import { useTags } from '../hooks/useTags';
 import MoneyInput from '../components/MoneyInput';
 import Avatar from '../components/Avatar';
 import { UID_DAPHNE, UID_JOAO, USUARIOS, type Gasto, type StatusGasto } from '../types/models';
 
-const hoje = () => new Date().toISOString().slice(0, 10);
+const hoje = () => dataLocalISO();
 
 export default function CadastroGasto() {
   const { id } = useParams();
@@ -252,8 +253,8 @@ export default function CadastroGasto() {
         </div>
 
         <div style={{ width: 220 }}>
-          <label className="field-label" htmlFor="dataLanc">Data de lançamento</label>
-          <input id="dataLanc" type="date" className="input" value={dataLancamento} onChange={(e) => setDataLancamento(e.target.value)} disabled={bloqueado} />
+          <label className="field-label" htmlFor="dataGasto">Data do gasto</label>
+          <input id="dataGasto" type="date" className="input" value={dataLancamento} onChange={(e) => setDataLancamento(e.target.value)} disabled={bloqueado} />
         </div>
 
         {erro && <span style={{ color: 'var(--neg)', fontSize: 13, fontWeight: 600 }}>{erro}</span>}

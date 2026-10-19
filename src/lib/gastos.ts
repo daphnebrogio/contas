@@ -10,6 +10,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { dataLocalISO } from './datas';
 import { escutar } from './escutar';
 import { uidDoCasal } from './identidade';
 import { registrarLog } from './logs';
@@ -19,7 +20,7 @@ const gastosRef = collection(db, 'gastos');
 
 /** anoMes no formato "2026-09". */
 export function anoMesAtual(data = new Date()): string {
-  return data.toISOString().slice(0, 7);
+  return dataLocalISO(data).slice(0, 7);
 }
 
 export function subscribeGastosDoMes(anoMes: string, cb: (gastos: Gasto[]) => void) {
