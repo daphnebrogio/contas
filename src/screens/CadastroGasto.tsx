@@ -2,10 +2,10 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { atualizarGasto, criarGasto, excluirGasto } from '../lib/gastos';
+import { anoMesAtual, atualizarGasto, criarGasto, excluirGasto } from '../lib/gastos';
 import { criarTag } from '../lib/tags';
 import { proximaCorLivre } from '../lib/cores';
-import { dataLocalISO } from '../lib/datas';
+import { dataLocalISO, mesDe } from '../lib/datas';
 import { useTags } from '../hooks/useTags';
 import MoneyInput from '../components/MoneyInput';
 import Avatar from '../components/Avatar';
@@ -28,7 +28,9 @@ export default function CadastroGasto() {
   const [novaTag, setNovaTag] = useState('');
   const [status, setStatus] = useState<StatusGasto>('pendente');
   const [pagador, setPagador] = useState<string | null>(null);
-  const [dataLancamento, setDataLancamento] = useState(hoje());
+  const [mesReferencia, setMesReferencia] = useState(anoMesAtual());
+  const [mesManual, setMesManual] = useState(false);
+  const [dataPagamento, setDataPagamento] = useState(hoje());
 
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -50,7 +52,9 @@ export default function CadastroGasto() {
       setTagsEscolhidas(g.tags);
       setStatus(g.status);
       setPagador(g.pagador);
-      setDataLancamento(g.data_lancamento);
+      setMesReferencia(mesDe(g));
+      setMesManual(true);
+      setDataPagamento(g.data_pagamento ?? hoje());
       setCarregado(true);
     })();
   }, [id]);
@@ -80,23 +84,24 @@ export default function CadastroGasto() {
 
     if (!descricao.trim()) return setErro('Descrição é obrigatória.');
     if (status === 'pago' && !pagador) return setErro('Defina quem pagou antes de marcar como Pago.');
+    if (!mesReferencia) return setErro('Informe o mês de referência.');
 
     setSalvando(true);
     try {
-      const dadosGasto = {
+      const campos = {
         valor,
         descricao,
         tags: tagsEscolhidas,
         pagador,
-        data_lancamento: dataLancamento,
         status,
-        data_pagamento: status === 'pago' ? hoje() : null,
+        mes_referencia: mesReferencia,
+        data_pagamento: status === 'pago' ? dataPagamento || hoje() : null,
       };
 
       if (editando && id) {
-        await atualizarGasto(id, dadosGasto);
+        await atualizarGasto(id, campos);
       } else {
-        await criarGasto(dadosGasto);
+        await criarGasto({ ...campos, data_lancamento: hoje() });
       }
       navigate('/');
     } catch (err) {
@@ -105,6 +110,12 @@ export default function CadastroGasto() {
     } finally {
       setSalvando(false);
     }
+  }
+
+  // Num gasto novo, o mês de referência acompanha a data do pagamento até a pessoa escolher outro.
+  function mudarDataPagamento(valor: string) {
+    setDataPagamento(valor);
+    if (!editando && !mesManual && valor) setMesReferencia(valor.slice(0, 7));
   }
 
   async function excluir() {
@@ -237,9 +248,29 @@ export default function CadastroGasto() {
           )}
         </div>
 
-        <div style={{ width: 220 }}>
-          <label className="field-label" htmlFor="dataGasto">Data do gasto</label>
-          <input id="dataGasto" type="date" className="input" value={dataLancamento} onChange={(e) => setDataLancamento(e.target.value)} />
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ width: 240 }}>
+            <label className="field-label" htmlFor="mesRef">Mês de referência</label>
+            <input
+              id="mesRef"
+              type="month"
+              className="input"
+              value={mesReferencia}
+              onChange={(e) => {
+                setMesReferencia(e.target.value);
+                setMesManual(true);
+              }}
+            />
+            <span style={{ fontSize: 12, color: 'var(--ink2)', display: 'block', marginTop: 6 }}>
+              A que mês esta conta pertence — é o que vale nos relatórios.
+            </span>
+          </div>
+          {status === 'pago' && (
+            <div style={{ width: 240 }}>
+              <label className="field-label" htmlFor="dataPag">Data do pagamento</label>
+              <input id="dataPag" type="date" className="input" value={dataPagamento} onChange={(e) => mudarDataPagamento(e.target.value)} />
+            </div>
+          )}
         </div>
         </fieldset>
 

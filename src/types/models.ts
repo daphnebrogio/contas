@@ -25,9 +25,17 @@ export interface Gasto {
    */
   pagador: string | null; // uid
 
-  data_lancamento: string; // ISO date (competência — impacta o saldo mesmo pendente)
+  /**
+   * Mês a que a conta se refere ("2026-09"). É o que vale no Dashboard, nos
+   * relatórios e nos filtros. Gastos antigos não têm o campo: use mesDe().
+   */
+  mes_referencia?: string;
+
+  /** Dia em que o gasto foi registrado no app (ordenação e trava de liquidação). Não é editado pelo usuário. */
+  data_lancamento: string; // ISO date
   status: StatusGasto;
-  data_pagamento: string | null; // só quando status === 'pago'
+  /** Quando foi pago. Editável, só existe com status 'pago'; informativo — não entra em nenhum total. */
+  data_pagamento: string | null; // ISO date
 
   /** true se vinculado a uma Liquidação já confirmada (regra 5.4). */
   bloqueado_para_edicao: boolean;
@@ -63,6 +71,7 @@ export interface LogAlteracao {
   descricao: string;
   valor: number; // centavos
   data_lancamento: string;
+  mes_referencia?: string; // logs antigos não têm: use mesDe()
   pagador: string | null;
   status: StatusGasto;
   tags: string[];

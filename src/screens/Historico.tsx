@@ -5,6 +5,7 @@ import { subscribeLiquidacoes } from '../lib/liquidacoes';
 import { subscribeLogs } from '../lib/logs';
 import { formatBRL } from '../lib/money';
 import { COR_SEM_TAG } from '../lib/cores';
+import { mesDe } from '../lib/datas';
 import { UID_DAPHNE, UID_JOAO, USUARIOS, type Gasto, type Liquidacao, type LogAlteracao } from '../types/models';
 import { useTags } from '../hooks/useTags';
 import FiltroTags from '../components/FiltroTags';
@@ -19,6 +20,11 @@ function ultimosNMeses(n: number, hoje = new Date()): string[] {
 }
 
 const NOME_MES_CURTO = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+function rotuloMesRef(anoMes: string): string {
+  const [ano, mes] = anoMes.split('-').map(Number);
+  return `${NOME_MES_CURTO[mes - 1].toLowerCase()}/${ano}`;
+}
 
 function rotuloMesCurto(anoMes: string): string {
   const mes = Number(anoMes.split('-')[1]);
@@ -76,13 +82,13 @@ export default function Historico() {
 
   const meses = useMemo(() => ultimosNMeses(6), []);
   const totalPorMes = useMemo(
-    () => meses.map((m) => gastosFiltrados.filter((g) => g.data_lancamento.startsWith(m)).reduce((s, g) => s + g.valor, 0)),
+    () => meses.map((m) => gastosFiltrados.filter((g) => mesDe(g) === m).reduce((s, g) => s + g.valor, 0)),
     [gastosFiltrados, meses],
   );
   const totaisPorMesPorPagador = useMemo(
     () =>
       meses.map((m) => {
-        const doMes = gastosFiltrados.filter((g) => g.data_lancamento.startsWith(m));
+        const doMes = gastosFiltrados.filter((g) => mesDe(g) === m);
         return {
           daphne: doMes.filter((g) => g.pagador === UID_DAPHNE).reduce((s, g) => s + g.valor, 0),
           joao: doMes.filter((g) => g.pagador === UID_JOAO).reduce((s, g) => s + g.valor, 0),
@@ -100,7 +106,7 @@ export default function Historico() {
     function somaPorTag(mes: string) {
       const mapa = new Map<string, number>();
       for (const g of gastosFiltrados) {
-        if (!g.data_lancamento.startsWith(mes)) continue;
+        if (mesDe(g) !== mes) continue;
         for (const t of g.tags) mapa.set(t, (mapa.get(t) ?? 0) + g.valor);
       }
       return mapa;
@@ -121,7 +127,12 @@ export default function Historico() {
   const maiorComparativo = Math.max(...comparativoMensal.flatMap((l) => [l.valorAtual, l.valorAnterior]), 1);
 
   const timeline = useMemo(
-    () => [...gastosFiltrados].sort((a, b) => (a.data_lancamento < b.data_lancamento ? 1 : -1)).slice(0, 30),
+    () =>
+      [...gastosFiltrados]
+        .sort((a, b) =>
+          mesDe(a) !== mesDe(b) ? (mesDe(a) < mesDe(b) ? 1 : -1) : a.data_lancamento < b.data_lancamento ? 1 : -1,
+        )
+        .slice(0, 30),
     [gastosFiltrados],
   );
 
@@ -290,7 +301,7 @@ export default function Historico() {
                 {' · '}
                 <span className="money">{formatBRL(l.valor)}</span>
                 {' · '}
-                <span style={{ color: 'var(--ink2)' }}>{new Date(l.data_lancamento + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                <span style={{ color: 'var(--ink2)' }}>ref. {rotuloMesRef(mesDe(l))}</span>
                 {' · '}
                 <span>pago por <strong>{nomePagador(l.pagador)}</strong></span>
                 {l.acao === 'edicao' && l.valor_anterior !== undefined && (

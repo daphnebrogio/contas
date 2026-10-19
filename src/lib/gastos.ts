@@ -4,10 +4,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
-  orderBy,
-  query,
   updateDoc,
-  where,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { dataLocalISO } from './datas';
@@ -21,18 +18,6 @@ const gastosRef = collection(db, 'gastos');
 /** anoMes no formato "2026-09". */
 export function anoMesAtual(data = new Date()): string {
   return dataLocalISO(data).slice(0, 7);
-}
-
-export function subscribeGastosDoMes(anoMes: string, cb: (gastos: Gasto[]) => void) {
-  const q = query(
-    gastosRef,
-    where('data_lancamento', '>=', `${anoMes}-01`),
-    where('data_lancamento', '<=', `${anoMes}-31`),
-    orderBy('data_lancamento', 'desc'),
-  );
-  return escutar('gastos do mês', q, (snap) => {
-    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Gasto, 'id'>) })));
-  });
 }
 
 /** Todos os gastos de todos os tempos — usado pro saldo acumulado (regra 4). */
@@ -53,7 +38,7 @@ type NovoGasto = Omit<Gasto, 'id' | 'bloqueado_para_edicao'>;
  */
 async function logarGasto(
   acao: AcaoLog,
-  gasto: Pick<Gasto, 'id' | 'descricao' | 'valor' | 'data_lancamento' | 'pagador' | 'status' | 'tags'>,
+  gasto: Pick<Gasto, 'id' | 'descricao' | 'valor' | 'data_lancamento' | 'mes_referencia' | 'pagador' | 'status' | 'tags'>,
   anterior?: Pick<Gasto, 'pagador' | 'valor'>,
 ) {
   const uid = uidDoCasal(auth.currentUser);

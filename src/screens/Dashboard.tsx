@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { anoMesAtual, calcularSaldo, subscribeGastosDoMes, subscribeTodosGastos } from '../lib/gastos';
+import { anoMesAtual, calcularSaldo, subscribeTodosGastos } from '../lib/gastos';
+import { mesDe } from '../lib/datas';
 import { subscribeLiquidacoes } from '../lib/liquidacoes';
 import { formatBRL } from '../lib/money';
 import { UID_DAPHNE, UID_JOAO, USUARIOS, type Gasto, type Liquidacao } from '../types/models';
@@ -21,14 +22,18 @@ function mudarMes(anoMes: string, delta: number): string {
 
 export default function Dashboard() {
   const [anoMes, setAnoMes] = useState(anoMesAtual());
-  const [gastos, setGastos] = useState<Gasto[]>([]);
   const [todosGastos, setTodosGastos] = useState<Gasto[]>([]);
   const [liquidacoes, setLiquidacoes] = useState<Liquidacao[]>([]);
   const tags = useTags();
 
-  useEffect(() => subscribeGastosDoMes(anoMes, setGastos), [anoMes]);
   useEffect(() => subscribeTodosGastos(setTodosGastos), []);
   useEffect(() => subscribeLiquidacoes(setLiquidacoes), []);
+
+  // O mês é o de referência da conta (não o dia do pagamento); já temos todos os gastos aqui pro saldo.
+  const gastos = useMemo(
+    () => todosGastos.filter((g) => mesDe(g) === anoMes).sort((a, b) => (a.data_lancamento < b.data_lancamento ? 1 : -1)),
+    [todosGastos, anoMes],
+  );
 
   const total = gastos.reduce((soma, g) => soma + g.valor, 0);
   const totalDaphne = gastos.filter((g) => g.pagador === UID_DAPHNE).reduce((s, g) => s + g.valor, 0);
@@ -117,7 +122,7 @@ export default function Dashboard() {
             </div>
             <Avatar uid={g.pagador} />
             <span style={{ fontSize: 13, color: 'var(--ink2)' }}>
-              {new Date(g.data_lancamento + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+              {g.data_pagamento ? new Date(g.data_pagamento + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—'}
             </span>
             <span className="money" style={{ fontSize: 14, fontWeight: 600 }}>{formatBRL(g.valor)}</span>
             <span style={{ fontSize: 12, fontWeight: 600, color: g.status === 'pago' ? 'var(--accent)' : 'var(--pending)', display: 'flex', alignItems: 'center', gap: 4 }}>

@@ -1,6 +1,7 @@
 import { addDoc, collection, limit, orderBy, query } from 'firebase/firestore';
 import { db } from './firebase';
 import { escutar } from './escutar';
+import { mesDe } from './datas';
 import type { AcaoLog, Gasto, LogAlteracao } from '../types/models';
 
 const logsRef = collection(db, 'logs');
@@ -12,7 +13,7 @@ export function subscribeLogs(cb: (logs: LogAlteracao[]) => void, max = 40) {
   });
 }
 
-type GastoDoLog = Pick<Gasto, 'id' | 'descricao' | 'valor' | 'data_lancamento' | 'pagador' | 'status' | 'tags'>;
+type GastoDoLog = Pick<Gasto, 'id' | 'descricao' | 'valor' | 'data_lancamento' | 'mes_referencia' | 'pagador' | 'status' | 'tags'>;
 
 /**
  * Grava uma linha de auditoria: quem fez o quê, com uma cópia do gasto naquele
@@ -31,6 +32,7 @@ export async function registrarLog(
     descricao: gasto.descricao,
     valor: gasto.valor,
     data_lancamento: gasto.data_lancamento,
+    mes_referencia: mesDe(gasto),
     pagador: gasto.pagador,
     status: gasto.status,
     tags: gasto.tags,
