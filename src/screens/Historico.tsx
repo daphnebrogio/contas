@@ -31,6 +31,10 @@ const ROTULO_ACAO: Record<LogAlteracao['acao'], string> = {
   exclusao: 'excluiu',
 };
 
+function nomePagador(uid: string | null | undefined): string {
+  return uid ? (USUARIOS[uid]?.nome ?? '?') : 'sem pagador';
+}
+
 function formatDataHora(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
@@ -287,6 +291,13 @@ export default function Historico() {
                 <span className="money">{formatBRL(l.valor)}</span>
                 {' · '}
                 <span style={{ color: 'var(--ink2)' }}>{new Date(l.data_lancamento + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                {' · '}
+                <span>pago por <strong>{nomePagador(l.pagador)}</strong></span>
+                {l.acao === 'edicao' && l.valor_anterior !== undefined && (
+                  <span style={{ color: 'var(--ink2)' }}>
+                    {' '}(antes: <span className="money">{formatBRL(l.valor_anterior)}</span>, pago por {nomePagador(l.pagador_anterior)})
+                  </span>
+                )}
               </span>
               <span style={{ fontSize: 11, color: 'var(--ink2)', whiteSpace: 'nowrap' }}>{formatDataHora(l.criado_em)}</span>
             </div>

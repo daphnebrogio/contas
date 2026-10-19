@@ -51,11 +51,15 @@ type NovoGasto = Omit<Gasto, 'id' | 'bloqueado_para_edicao'>;
  * verdade — reportar erro aqui enganaria o usuário a tentar de novo e
  * duplicar o lançamento.
  */
-async function logarGasto(acao: AcaoLog, gasto: Pick<Gasto, 'id' | 'descricao' | 'valor' | 'data_lancamento' | 'pagador' | 'status' | 'tags'>) {
+async function logarGasto(
+  acao: AcaoLog,
+  gasto: Pick<Gasto, 'id' | 'descricao' | 'valor' | 'data_lancamento' | 'pagador' | 'status' | 'tags'>,
+  anterior?: Pick<Gasto, 'pagador' | 'valor'>,
+) {
   const uid = uidDoCasal(auth.currentUser);
   if (!uid) return;
   try {
-    await registrarLog(uid, acao, gasto);
+    await registrarLog(uid, acao, gasto, anterior);
   } catch (err) {
     console.error('Falha ao gravar log de alterações (ação principal já concluída):', err);
   }
@@ -68,11 +72,15 @@ export async function criarGasto(dados: NovoGasto) {
 }
 
 export async function atualizarGasto(id: string, mudancas: Partial<NovoGasto>) {
+  const antes = await getDoc(doc(db, 'gastos', id));
   await updateDoc(doc(db, 'gastos', id), mudancas);
-  const snap = await getDoc(doc(db, 'gastos', id));
-  if (snap.exists()) {
-    const g = { id: snap.id, ...(snap.data() as Omit<Gasto, 'id'>) };
-    await logarGasto('edicao', g);
+  const depois = await getDoc(doc(db, 'gastos', id));
+  if (depois.exists()) {
+    const g = { id: depois.id, ...(depois.data() as Omit<Gasto, 'id'>) };
+    const anterior = antes.exists()
+      ? { pagador: (antes.data().pagador as string | null | undefined) ?? null, valor: antes.data().valor as number }
+      : undefined;
+    await logarGasto('edicao', g, anterior);
   }
 }
 

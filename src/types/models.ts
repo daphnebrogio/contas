@@ -76,5 +76,8 @@ export interface LogAlteracao {
   pagador: string | null;
   status: StatusGasto;
   tags: string[];
+  /** Só em edição: como o gasto era ANTES da alteração (os campos acima são o estado depois). */
+  pagador_anterior?: string | null;
+  valor_anterior?: number; // centavos
   criado_em: string; // ISO datetime da própria ação de log
 }
