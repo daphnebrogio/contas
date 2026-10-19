@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { escutar } from './escutar';
+import { uidDoCasal } from './identidade';
 import { registrarLog } from './logs';
 import { UID_DAPHNE, UID_JOAO, type AcaoLog, type Gasto, type SerieRecorrente } from '../types/models';
 
@@ -51,7 +52,7 @@ type NovoGasto = Omit<Gasto, 'id' | 'bloqueado_para_edicao'>;
  * duplicar o lançamento.
  */
 async function logarGasto(acao: AcaoLog, gasto: Pick<Gasto, 'id' | 'descricao' | 'valor' | 'data_lancamento' | 'pagador' | 'status' | 'tags'>) {
-  const uid = auth.currentUser?.uid;
+  const uid = uidDoCasal(auth.currentUser);
   if (!uid) return;
   try {
     await registrarLog(uid, acao, gasto);

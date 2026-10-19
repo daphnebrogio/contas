@@ -3,7 +3,8 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useErrosLeitura } from '../lib/escutar';
 import { useAuth } from '../hooks/useAuth';
-import { USUARIOS } from '../types/models';
+import { uidDoCasal } from '../lib/identidade';
+import { UID_JOAO, USUARIOS } from '../types/models';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard' },
@@ -20,7 +21,7 @@ function AvisoLeitura() {
   const colecoes = Object.keys(erros);
   if (colecoes.length === 0) return null;
 
-  const contaAutorizada = Boolean(user && USUARIOS[user.uid]);
+  const contaAutorizada = uidDoCasal(user) !== null;
   return (
     <div className="card" style={{ background: 'var(--neg-soft)', border: '1px solid var(--neg)', marginBottom: 20, fontSize: 13, lineHeight: 1.6 }}>
       <strong>Não consegui ler: {colecoes.join(', ')}.</strong>{' '}
@@ -36,8 +37,10 @@ function AvisoLeitura() {
 
 export default function Layout() {
   const user = useAuth();
-  const nome = (user && USUARIOS[user.uid]?.nome) || user?.email || '';
+  const meuUid = uidDoCasal(user);
+  const nome = (meuUid && USUARIOS[meuUid]?.nome) || user?.email || '';
   const inicial = nome.charAt(0).toUpperCase();
+  const corIdentidade = meuUid === UID_JOAO ? 'var(--joao)' : 'var(--daphne)';
 
   return (
     <div className="app-shell">
@@ -65,7 +68,7 @@ export default function Layout() {
             + Novo gasto
           </NavLink>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px' }}>
-            <span className="avatar" style={{ width: 32, height: 32, background: 'var(--daphne)', fontSize: 13 }}>
+            <span className="avatar" style={{ width: 32, height: 32, background: corIdentidade, fontSize: 13 }}>
               {inicial}
             </span>
             <span style={{ fontSize: 13, flexGrow: 1 }}>{nome}</span>

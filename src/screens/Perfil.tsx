@@ -10,6 +10,7 @@ import { UID_DAPHNE, USUARIOS, type Gasto, type Liquidacao } from '../types/mode
 import Avatar from '../components/Avatar';
 import { ICONES, IDS_ICONES } from '../lib/icones';
 import { definirIcone } from '../lib/usuarios';
+import { uidDoCasal } from '../lib/identidade';
 
 export default function Perfil() {
   const user = useAuth();
@@ -21,10 +22,11 @@ export default function Perfil() {
 
   if (!user) return null;
 
-  const nome = USUARIOS[user.uid]?.nome ?? user.email ?? '';
+  const meuUid = uidDoCasal(user) ?? user.uid;
+  const nome = USUARIOS[meuUid]?.nome ?? user.email ?? '';
   const saldoDaphne = calcularSaldo(gastos, liquidacoes).centavos;
-  const meuSaldo = user.uid === UID_DAPHNE ? saldoDaphne : -saldoDaphne;
-  const outroUid = user.uid === UID_DAPHNE ? Object.keys(USUARIOS).find((u) => u !== UID_DAPHNE)! : UID_DAPHNE;
+  const meuSaldo = meuUid === UID_DAPHNE ? saldoDaphne : -saldoDaphne;
+  const outroUid = meuUid === UID_DAPHNE ? Object.keys(USUARIOS).find((u) => u !== UID_DAPHNE)! : UID_DAPHNE;
   const outroNome = USUARIOS[outroUid]?.nome ?? '';
 
   return (
@@ -33,7 +35,7 @@ export default function Perfil() {
         <h2 style={{ fontSize: 24 }}>Perfil</h2>
 
         <div className="card" style={{ padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
-          <Avatar uid={user.uid} size={96} />
+          <Avatar uid={meuUid} size={96} />
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
             <span style={{ fontSize: 20, fontWeight: 600 }}>{nome}</span>
             <span style={{ fontSize: 13, color: 'var(--ink2)' }}>{user.email}</span>
@@ -49,7 +51,7 @@ export default function Perfil() {
                   key={id}
                   aria-label={id}
                   onClick={() => {
-                    definirIcone(user.uid, id);
+                    definirIcone(meuUid, id);
                     setSeletorAberto(false);
                   }}
                   className="icon-btn"

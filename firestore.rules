@@ -2,9 +2,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // A conta real do João tem outro UID que não o MrWON54... gravado nos
+    // gastos; ela é reconhecida pelo e-mail (único por conta no Firebase Auth).
+    // Precisa ser igual a EMAIL_JOAO em src/lib/identidade.ts.
+    function isJoaoPorEmail() {
+      return request.auth != null &&
+        request.auth.token.email.lower() == 'jg.carvalhosilva@gmail.com';
+    }
+
     function isCasal() {
       return request.auth != null &&
-        request.auth.uid in ['8WaJbLFwaXPzRGO30QYr3RjLL9E2', 'MrWON54UtMNsO6mLSTmShm3QiGz2'];
+        (request.auth.uid in ['8WaJbLFwaXPzRGO30QYr3RjLL9E2', 'MrWON54UtMNsO6mLSTmShm3QiGz2'] ||
+         isJoaoPorEmail());
+    }
+
+    // O perfil (/usuarios) fica sempre sob o UID "de dados", mesmo pro João por e-mail.
+    function meuUidDeDados() {
+      return isJoaoPorEmail() ? 'MrWON54UtMNsO6mLSTmShm3QiGz2' : request.auth.uid;
     }
 
     // Num gasto já bloqueado (regra 5.4), só o comprovante pode mudar —
@@ -17,7 +31,7 @@ service cloud.firestore {
 
     match /usuarios/{uid} {
       allow read: if isCasal();
-      allow write: if isCasal() && request.auth.uid == uid;
+      allow write: if isCasal() && meuUidDeDados() == uid;
     }
 
     match /tags/{tagId} {
