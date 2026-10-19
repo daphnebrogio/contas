@@ -1,12 +1,13 @@
-import { addDoc, collection, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { addDoc, collection, limit, orderBy, query } from 'firebase/firestore';
 import { db } from './firebase';
+import { escutar } from './escutar';
 import type { AcaoLog, Gasto, LogAlteracao } from '../types/models';
 
 const logsRef = collection(db, 'logs');
 
 export function subscribeLogs(cb: (logs: LogAlteracao[]) => void, max = 40) {
   const q = query(logsRef, orderBy('criado_em', 'desc'), limit(max));
-  return onSnapshot(q, (snap) => {
+  return escutar('log de alterações', q, (snap) => {
     cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<LogAlteracao, 'id'>) })));
   });
 }

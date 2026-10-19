@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { useErrosLeitura } from '../lib/escutar';
 import { useAuth } from '../hooks/useAuth';
 import { USUARIOS } from '../types/models';
 
@@ -11,6 +12,27 @@ const NAV_ITEMS = [
   { to: '/liquidacao', label: 'Liquidação' },
   { to: '/perfil', label: 'Perfil' },
 ];
+
+/** Aparece só quando o Firestore recusa uma leitura — senão a tela só ficaria vazia, sem explicação. */
+function AvisoLeitura() {
+  const erros = useErrosLeitura();
+  const user = useAuth();
+  const colecoes = Object.keys(erros);
+  if (colecoes.length === 0) return null;
+
+  const contaAutorizada = Boolean(user && USUARIOS[user.uid]);
+  return (
+    <div className="card" style={{ background: 'var(--neg-soft)', border: '1px solid var(--neg)', marginBottom: 20, fontSize: 13, lineHeight: 1.6 }}>
+      <strong>Não consegui ler: {colecoes.join(', ')}.</strong>{' '}
+      {contaAutorizada
+        ? 'A conta é uma das duas autorizadas, então o provável é que as regras do Firestore não tenham sido republicadas (Firebase Console → Firestore → Rules → Publicar).'
+        : 'Essa conta NÃO é uma das duas autorizadas nas regras do Firestore — o UID dela precisa ser exatamente um dos dois cadastrados em firestore.rules.'}
+      <div style={{ marginTop: 8, color: 'var(--ink2)', wordBreak: 'break-all' }}>
+        Conta: {user?.email ?? '—'} · UID: {user?.uid ?? '—'} · Erro: {[...new Set(Object.values(erros))].join(', ')}
+      </div>
+    </div>
+  );
+}
 
 export default function Layout() {
   const user = useAuth();
@@ -59,6 +81,7 @@ export default function Layout() {
       </aside>
 
       <main className="main-content">
+        <AvisoLeitura />
         <Outlet />
       </main>
 

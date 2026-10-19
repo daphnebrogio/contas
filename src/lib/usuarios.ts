@@ -1,12 +1,13 @@
-import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, doc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import { escutar } from './escutar';
 
 export interface PerfilUsuario {
   icone: string | null;
 }
 
 export function subscribeUsuarios(cb: (perfis: Record<string, PerfilUsuario>) => void) {
-  return onSnapshot(collection(db, 'usuarios'), (snap) => {
+  return escutar('usuários', collection(db, 'usuarios'), (snap) => {
     const perfis: Record<string, PerfilUsuario> = {};
     snap.docs.forEach((d) => {
       perfis[d.id] = { icone: (d.data().icone as string | undefined) ?? null };

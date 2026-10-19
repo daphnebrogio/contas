@@ -4,7 +4,6 @@ import {
   deleteDoc,
   doc,
   getDocs,
-  onSnapshot,
   orderBy,
   query,
   updateDoc,
@@ -12,13 +11,14 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { escutar } from './escutar';
 import type { Tag } from '../types/models';
 
 const tagsRef = collection(db, 'tags');
 
 export function subscribeTags(cb: (tags: Tag[]) => void) {
   const q = query(tagsRef, orderBy('nome'));
-  return onSnapshot(q, (snap) => {
+  return escutar('tags', q, (snap) => {
     cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Tag, 'id'>) })));
   });
 }

@@ -5,13 +5,13 @@ import {
   doc,
   getDoc,
   getDocs,
-  onSnapshot,
   orderBy,
   query,
   updateDoc,
   where,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { escutar } from './escutar';
 import { registrarLog } from './logs';
 import { UID_DAPHNE, UID_JOAO, type AcaoLog, type Gasto, type SerieRecorrente } from '../types/models';
 
@@ -29,14 +29,14 @@ export function subscribeGastosDoMes(anoMes: string, cb: (gastos: Gasto[]) => vo
     where('data_lancamento', '<=', `${anoMes}-31`),
     orderBy('data_lancamento', 'desc'),
   );
-  return onSnapshot(q, (snap) => {
+  return escutar('gastos do mês', q, (snap) => {
     cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Gasto, 'id'>) })));
   });
 }
 
 /** Todos os gastos de todos os tempos — usado pro saldo acumulado (regra 4). */
 export function subscribeTodosGastos(cb: (gastos: Gasto[]) => void) {
-  return onSnapshot(gastosRef, (snap) => {
+  return escutar('gastos', gastosRef, (snap) => {
     cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Gasto, 'id'>) })));
   });
 }

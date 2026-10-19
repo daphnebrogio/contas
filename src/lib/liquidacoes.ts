@@ -1,12 +1,13 @@
-import { collection, onSnapshot, orderBy, query, writeBatch, doc, getDocs, where } from 'firebase/firestore';
+import { collection, orderBy, query, writeBatch, doc, getDocs, where } from 'firebase/firestore';
 import { db } from './firebase';
+import { escutar } from './escutar';
 import type { Liquidacao } from '../types/models';
 
 const liquidacoesRef = collection(db, 'liquidacoes');
 
 export function subscribeLiquidacoes(cb: (liquidacoes: Liquidacao[]) => void) {
   const q = query(liquidacoesRef, orderBy('data', 'desc'));
-  return onSnapshot(q, (snap) => {
+  return escutar('liquidações', q, (snap) => {
     cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Liquidacao, 'id'>) })));
   });
 }

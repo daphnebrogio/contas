@@ -1,12 +1,13 @@
-import { addDoc, collection, doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import { escutar } from './escutar';
 import type { SerieRecorrente } from '../types/models';
 
 const seriesRef = collection(db, 'series_recorrentes');
 
 /** Só as séries ainda ativas (sem data_fim, ou com fim no futuro). */
 export function subscribeSeriesAtivas(cb: (series: SerieRecorrente[]) => void) {
-  return onSnapshot(seriesRef, (snap) => {
+  return escutar('séries recorrentes', seriesRef, (snap) => {
     const todas = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<SerieRecorrente, 'id'>) }));
     const hoje = new Date().toISOString().slice(0, 10);
     cb(todas.filter((s) => s.data_fim === null || s.data_fim >= hoje));
