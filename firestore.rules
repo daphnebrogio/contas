@@ -21,14 +21,6 @@ service cloud.firestore {
       return isJoaoPorEmail() ? 'MrWON54UtMNsO6mLSTmShm3QiGz2' : request.auth.uid;
     }
 
-    // Num gasto já bloqueado (regra 5.4), só o comprovante pode mudar —
-    // ele não entra no cálculo do rateio, o resto (valor, pagador, status...)
-    // exige um gasto de ajuste novo em vez de editar o histórico.
-    function apenasComprovanteMudou() {
-      let campos = request.resource.data.diff(resource.data).affectedKeys();
-      return campos.hasOnly(['comprovante_url']);
-    }
-
     match /usuarios/{uid} {
       allow read: if isCasal();
       allow write: if isCasal() && meuUidDeDados() == uid;
@@ -40,8 +32,8 @@ service cloud.firestore {
 
     match /gastos/{gastoId} {
       allow read, create: if isCasal();
-      allow update: if isCasal() &&
-        (resource.data.bloqueado_para_edicao != true || apenasComprovanteMudou());
+      // Gasto já liquidado (regra 5.4) não muda mais: correção entra como gasto de ajuste.
+      allow update: if isCasal() && resource.data.bloqueado_para_edicao != true;
       // Exclusão liberada pra qualquer gasto, inclusive já liquidado — em
       // troca, o cliente sempre grava uma linha em /logs antes de apagar.
       allow delete: if isCasal();

@@ -29,16 +29,6 @@ export interface Gasto {
   status: StatusGasto;
   data_pagamento: string | null; // só quando status === 'pago'
 
-  /**
-   * Link do comprovante de pagamento, colado manualmente (Google Fotos,
-   * Drive, etc.) — sem upload próprio, pra não depender do plano Blaze
-   * do Firebase Storage. Opcional, e — diferente dos outros campos — NÃO
-   * é travado por bloqueado_para_edicao: colar o link não afeta o cálculo
-   * do rateio, então pode ser feito ou trocado mesmo depois do gasto
-   * liquidado.
-   */
-  comprovante_url: string | null;
-
   /** true se vinculado a uma Liquidação já confirmada (regra 5.4). */
   bloqueado_para_edicao: boolean;
 }

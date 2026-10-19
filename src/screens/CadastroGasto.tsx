@@ -29,7 +29,6 @@ export default function CadastroGasto() {
   const [status, setStatus] = useState<StatusGasto>('pendente');
   const [pagador, setPagador] = useState<string | null>(null);
   const [dataLancamento, setDataLancamento] = useState(hoje());
-  const [comprovanteUrl, setComprovanteUrl] = useState('');
 
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -52,7 +51,6 @@ export default function CadastroGasto() {
       setStatus(g.status);
       setPagador(g.pagador);
       setDataLancamento(g.data_lancamento);
-      setComprovanteUrl(g.comprovante_url ?? '');
       setCarregado(true);
     })();
   }, [id]);
@@ -93,7 +91,6 @@ export default function CadastroGasto() {
         data_lancamento: dataLancamento,
         status,
         data_pagamento: status === 'pago' ? hoje() : null,
-        comprovante_url: comprovanteUrl.trim() || null,
       };
 
       if (editando && id) {
@@ -139,11 +136,12 @@ export default function CadastroGasto() {
 
       {bloqueado && (
         <div className="card" style={{ background: 'var(--pending)', color: 'var(--accent-ink)', border: 'none', padding: '14px 20px', fontSize: 13, fontWeight: 600 }}>
-          Este gasto já faz parte de uma Liquidação confirmada — só o comprovante pode ser alterado. Pra corrigir valor ou pagador, lance um gasto de ajuste novo.
+          Este gasto já faz parte de uma Liquidação confirmada e não pode mais ser editado. Pra corrigir valor ou pagador, lance um gasto de ajuste novo (ou exclua este — fica registrado no log).
         </div>
       )}
 
       <form onSubmit={salvar} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <fieldset disabled={bloqueado} style={{ display: 'flex', flexDirection: 'column', gap: 20, border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           <div style={{ width: 200 }}>
             <label className="field-label" htmlFor="valor">Valor</label>
@@ -158,7 +156,6 @@ export default function CadastroGasto() {
               placeholder="Ex: Mercado da semana"
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
-              disabled={bloqueado}
             />
           </div>
         </div>
@@ -240,29 +237,20 @@ export default function CadastroGasto() {
           )}
         </div>
 
-        <div>
-          <label className="field-label" htmlFor="comprovante">Link do comprovante (opcional)</label>
-          <input
-            id="comprovante"
-            type="url"
-            className="input"
-            placeholder="Cole o link do Google Fotos, Drive, etc."
-            value={comprovanteUrl}
-            onChange={(e) => setComprovanteUrl(e.target.value)}
-          />
-        </div>
-
         <div style={{ width: 220 }}>
           <label className="field-label" htmlFor="dataGasto">Data do gasto</label>
-          <input id="dataGasto" type="date" className="input" value={dataLancamento} onChange={(e) => setDataLancamento(e.target.value)} disabled={bloqueado} />
+          <input id="dataGasto" type="date" className="input" value={dataLancamento} onChange={(e) => setDataLancamento(e.target.value)} />
         </div>
+        </fieldset>
 
         {erro && <span style={{ color: 'var(--neg)', fontSize: 13, fontWeight: 600 }}>{erro}</span>}
 
         <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-          <button type="submit" disabled={salvando} className="btn-primary">
-            {salvando ? 'Salvando…' : 'Salvar gasto'}
-          </button>
+          {!bloqueado && (
+            <button type="submit" disabled={salvando} className="btn-primary">
+              {salvando ? 'Salvando…' : 'Salvar gasto'}
+            </button>
+          )}
           <button type="button" onClick={() => navigate('/')} className="btn-secondary">
             Cancelar
           </button>
