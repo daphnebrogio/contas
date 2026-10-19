@@ -7,52 +7,21 @@ export const USUARIOS: Record<string, { nome: string }> = {
   [UID_JOAO]: { nome: 'João' },
 };
 
-export interface Usuario {
-  id: string; // uid do Firebase Auth
-  nome: string;
-  foto_url: string | null;
-}
-
-export type TipoGasto = 'recorrente' | 'pontual';
 export type StatusGasto = 'pendente' | 'pago';
 
 /**
- * A definição de uma despesa recorrente (aluguel, internet...). Não é um
- * lançamento em si — é o "molde" a partir do qual instâncias mensais de
- * Gasto são geradas. Separado de Gasto porque o pagador de cada mês varia
- * e não faz sentido morar na definição da série.
+ * Documentos antigos podem ter `tipo`, `serie_id` e outros campos da época
+ * da recorrência automática; são ignorados — nada lê nem escreve neles.
  */
-export interface SerieRecorrente {
-  id: string;
-  descricao: string;
-  tags: string[]; // ids de Tag
-  valor_sugerido: number; // centavos — default ao gerar, sempre editável na instância
-  dia_vencimento: number; // 1-31
-  data_inicio: string; // ISO date — a partir de quando passou a existir
-  data_fim: string | null; // null = ativa; ISO date = não gera mais instâncias a partir daqui
-
-  /**
-   * "YYYY-MM" do último mês em que uma instância já foi criada pra essa
-   * série (na criação da série ou pela geração automática). Controla a
-   * geração automática por marcação, não por existência do Gasto — assim,
-   * se o usuário excluir a instância do mês, ela não "renasce" sozinha da
-   * próxima vez que o app abrir.
-   */
-  ultima_instancia_gerada: string | null;
-}
-
 export interface Gasto {
   id: string;
   valor: number; // centavos
   descricao: string;
   tags: string[]; // ids de Tag
-  tipo: TipoGasto;
-  serie_id: string | null; // referência à SerieRecorrente, só se tipo === 'recorrente'
 
   /**
    * Quem pagou. Obrigatório quando status === 'pago'; pode ser null
-   * enquanto pendente — um gasto recorrente recém-gerado não tem "dono"
-   * fixo até alguém efetivamente pagar aquele mês.
+   * enquanto pendente — ainda não se sabe quem vai pagar.
    */
   pagador: string | null; // uid
 
@@ -77,6 +46,8 @@ export interface Gasto {
 export interface Tag {
   id: string;
   nome: string; // único, case-insensitive
+  /** Cor da categoria (hex). Tags antigas sem cor gravada recebem uma automática — ver useTags. */
+  cor: string;
 }
 
 export interface Liquidacao {

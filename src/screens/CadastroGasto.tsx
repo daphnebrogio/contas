@@ -3,12 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { atualizarGasto, criarGasto, excluirGasto } from '../lib/gastos';
-import { criarSerie, encerrarSerie, marcarInstanciaGerada, reabrirSerie } from '../lib/series';
 import { criarTag } from '../lib/tags';
+import { proximaCorLivre } from '../lib/cores';
 import { useTags } from '../hooks/useTags';
 import MoneyInput from '../components/MoneyInput';
 import Avatar from '../components/Avatar';
-import { UID_DAPHNE, UID_JOAO, USUARIOS, type Gasto, type StatusGasto, type TipoGasto } from '../types/models';
+import { UID_DAPHNE, UID_JOAO, USUARIOS, type Gasto, type StatusGasto } from '../types/models';
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 
@@ -20,22 +20,15 @@ export default function CadastroGasto() {
 
   const [carregado, setCarregado] = useState(!editando);
   const [gastoOriginal, setGastoOriginal] = useState<Gasto | null>(null);
-  const [serieId, setSerieId] = useState<string | null>(null);
-  const [serieFim, setSerieFim] = useState<string | null>(null);
 
   const [valor, setValor] = useState(0);
   const [descricao, setDescricao] = useState('');
   const [tagsEscolhidas, setTagsEscolhidas] = useState<string[]>([]);
   const [novaTag, setNovaTag] = useState('');
-  const [tipo, setTipo] = useState<TipoGasto>('pontual');
   const [status, setStatus] = useState<StatusGasto>('pendente');
   const [pagador, setPagador] = useState<string | null>(null);
   const [dataLancamento, setDataLancamento] = useState(hoje());
   const [comprovanteUrl, setComprovanteUrl] = useState('');
-
-  const [diaVencimento, setDiaVencimento] = useState(new Date().getDate());
-  const [dataFimSerie, setDataFimSerie] = useState<string | null>(null);
-  const [valorSugerido, setValorSugerido] = useState(0);
 
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -55,30 +48,15 @@ export default function CadastroGasto() {
       setValor(g.valor);
       setDescricao(g.descricao);
       setTagsEscolhidas(g.tags);
-      setTipo(g.tipo);
       setStatus(g.status);
       setPagador(g.pagador);
       setDataLancamento(g.data_lancamento);
       setComprovanteUrl(g.comprovante_url ?? '');
-      setValorSugerido(g.valor);
-
-      if (g.serie_id) {
-        setSerieId(g.serie_id);
-        const serieSnap = await getDoc(doc(db, 'series_recorrentes', g.serie_id));
-        if (serieSnap.exists()) {
-          const s = serieSnap.data();
-          setDiaVencimento(s.dia_vencimento);
-          setDataFimSerie(s.data_fim);
-          setSerieFim(s.data_fim);
-          setValorSugerido(s.valor_sugerido);
-        }
-      }
       setCarregado(true);
     })();
   }, [id]);
 
   const bloqueado = gastoOriginal?.bloqueado_para_edicao ?? false;
-  const recorrenciaEncerrada = tipo === 'recorrente' && serieId !== null && dataFimSerie !== null;
 
   function alternarTag(tagId: string) {
     setTagsEscolhidas((atual) => (atual.includes(tagId) ? atual.filter((t) => t !== tagId) : [...atual, tagId]));
@@ -91,7 +69,7 @@ export default function CadastroGasto() {
     if (existente) {
       if (!tagsEscolhidas.includes(existente.id)) setTagsEscolhidas((a) => [...a, existente.id]);
     } else {
-      await criarTag(nome);
+      await criarTag(nome, proximaCorLivre(tags));
       // a tag nova chega via subscribeTags no próximo tick; o usuário marca ela na lista.
     }
     setNovaTag('');
@@ -106,27 +84,10 @@ export default function CadastroGasto() {
 
     setSalvando(true);
     try {
-      let serieIdParaGasto = serieId;
-
-      if (tipo === 'recorrente' && !serieId) {
-        const novaSerie = await criarSerie({
-          descricao,
-          tags: tagsEscolhidas,
-          valor_sugerido: valorSugerido || valor,
-          dia_vencimento: diaVencimento,
-          data_inicio: dataLancamento,
-          data_fim: null,
-          ultima_instancia_gerada: null,
-        });
-        serieIdParaGasto = novaSerie.id;
-      }
-
       const dadosGasto = {
         valor,
         descricao,
         tags: tagsEscolhidas,
-        tipo,
-        serie_id: tipo === 'recorrente' ? serieIdParaGasto : null,
         pagador,
         data_lancamento: dataLancamento,
         status,
@@ -138,9 +99,6 @@ export default function CadastroGasto() {
         await atualizarGasto(id, dadosGasto);
       } else {
         await criarGasto(dadosGasto);
-        if (tipo === 'recorrente' && serieIdParaGasto) {
-          await marcarInstanciaGerada(serieIdParaGasto, dataLancamento.slice(0, 7));
-        }
       }
       navigate('/');
     } catch (err) {
@@ -165,20 +123,6 @@ export default function CadastroGasto() {
       console.error(err);
       setConfirmandoExclusao(false);
     }
-  }
-
-  async function encerrarRecorrencia() {
-    if (!serieId) return;
-    await encerrarSerie(serieId);
-    setDataFimSerie(hoje());
-    setSerieFim(hoje());
-  }
-
-  async function desfazerEncerramento() {
-    if (!serieId) return;
-    await reabrirSerie(serieId);
-    setDataFimSerie(null);
-    setSerieFim(null);
   }
 
   if (!carregado) return null;
@@ -226,14 +170,16 @@ export default function CadastroGasto() {
                 key={t.id}
                 type="button"
                 onClick={() => alternarTag(t.id)}
-                className="tag-pill"
+                className="filtro-chip"
+                aria-pressed={tagsEscolhidas.includes(t.id)}
                 style={{
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: tagsEscolhidas.includes(t.id) ? 'var(--accent)' : 'var(--tag-bg)',
-                  color: tagsEscolhidas.includes(t.id) ? 'var(--accent-ink)' : 'var(--tag-text)',
+                  background: tagsEscolhidas.includes(t.id) ? t.cor : 'var(--surface)',
+                  color: tagsEscolhidas.includes(t.id) ? 'var(--accent-ink)' : 'var(--ink)',
+                  borderColor: tagsEscolhidas.includes(t.id) ? t.cor : 'var(--border)',
+                  fontWeight: tagsEscolhidas.includes(t.id) ? 700 : 500,
                 }}
               >
+                <span className="tag-dot" style={{ background: tagsEscolhidas.includes(t.id) ? 'var(--accent-ink)' : t.cor }} />
                 {t.nome}
               </button>
             ))}
@@ -251,18 +197,6 @@ export default function CadastroGasto() {
 
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           <div>
-            <span className="field-label">Tipo</span>
-            <Segmented
-              disabled={editando}
-              options={[
-                { value: 'pontual', label: 'Pontual' },
-                { value: 'recorrente', label: 'Recorrente' },
-              ]}
-              value={tipo}
-              onChange={(v) => setTipo(v as TipoGasto)}
-            />
-          </div>
-          <div>
             <span className="field-label">Status</span>
             <Segmented
               options={[
@@ -277,11 +211,6 @@ export default function CadastroGasto() {
 
         <div>
           <span className="field-label">Pagador — quem pagou</span>
-          {tipo === 'recorrente' && (
-            <span style={{ fontSize: 12, color: 'var(--ink2)', display: 'block', marginBottom: 8 }}>
-              Recorrente varia todo mês — só fica definido quando alguém marca como pago.
-            </span>
-          )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {[UID_DAPHNE, UID_JOAO].map((uid) => (
               <button
@@ -327,40 +256,6 @@ export default function CadastroGasto() {
           <input id="dataLanc" type="date" className="input" value={dataLancamento} onChange={(e) => setDataLancamento(e.target.value)} disabled={bloqueado} />
         </div>
 
-        {tipo === 'recorrente' && !recorrenciaEncerrada && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 18, background: 'var(--bg)', borderRadius: 12, border: '1px dashed var(--border)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink2)' }}>CAMPOS DA RECORRÊNCIA</span>
-              {serieId && (
-                <button type="button" onClick={encerrarRecorrencia} className="btn-text-danger">
-                  Encerrar recorrência
-                </button>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              <div style={{ width: 180 }}>
-                <label className="field-label" htmlFor="venc">Dia de vencimento</label>
-                <input id="venc" type="number" min={1} max={31} className="input" value={diaVencimento} onChange={(e) => setDiaVencimento(Number(e.target.value))} />
-              </div>
-              <div style={{ width: 200 }}>
-                <label className="field-label" htmlFor="valorSug">Valor sugerido</label>
-                <MoneyInput id="valorSug" centavos={valorSugerido} onChange={setValorSugerido} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {recorrenciaEncerrada && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: 18, background: 'var(--neg-soft)', borderRadius: 12, border: '1px solid rgba(201,114,104,0.35)' }}>
-            <span style={{ fontSize: 13, color: '#f0c4bc', lineHeight: 1.5 }}>
-              Recorrência encerrada a partir de {serieFim && new Date(serieFim + 'T00:00:00').toLocaleDateString('pt-BR')} — não gera mais instâncias novas. Os meses já lançados continuam no histórico.
-            </span>
-            <button type="button" onClick={desfazerEncerramento} className="btn-text-danger" style={{ color: '#f0c4bc', whiteSpace: 'nowrap' }}>
-              Desfazer
-            </button>
-          </div>
-        )}
-
         {erro && <span style={{ color: 'var(--neg)', fontSize: 13, fontWeight: 600 }}>{erro}</span>}
 
         <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
@@ -405,27 +300,24 @@ function Segmented({
   options,
   value,
   onChange,
-  disabled,
 }: {
   options: { value: string; label: string }[];
   value: string;
   onChange: (v: string) => void;
-  disabled?: boolean;
 }) {
   return (
-    <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', width: 'fit-content', opacity: disabled ? 0.5 : 1 }}>
+    <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', width: 'fit-content' }}>
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
-          disabled={disabled}
           onClick={() => onChange(o.value)}
           style={{
             padding: '9px 18px',
             fontSize: 13,
             fontWeight: 600,
             border: 'none',
-            cursor: disabled ? 'not-allowed' : 'pointer',
+            cursor: 'pointer',
             background: value === o.value ? 'var(--accent)' : 'var(--surface)',
             color: value === o.value ? 'var(--accent-ink)' : 'var(--ink)',
           }}

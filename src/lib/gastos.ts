@@ -4,7 +4,6 @@ import {
   deleteDoc,
   doc,
   getDoc,
-  getDocs,
   orderBy,
   query,
   updateDoc,
@@ -14,7 +13,7 @@ import { auth, db } from './firebase';
 import { escutar } from './escutar';
 import { uidDoCasal } from './identidade';
 import { registrarLog } from './logs';
-import { UID_DAPHNE, UID_JOAO, type AcaoLog, type Gasto, type SerieRecorrente } from '../types/models';
+import { UID_DAPHNE, UID_JOAO, type AcaoLog, type Gasto } from '../types/models';
 
 const gastosRef = collection(db, 'gastos');
 
@@ -61,14 +60,9 @@ async function logarGasto(acao: AcaoLog, gasto: Pick<Gasto, 'id' | 'descricao' |
   }
 }
 
-/**
- * `log: false` é usado só pela geração automática de instâncias recorrentes
- * (regra 5.1) — não é uma ação de um dos dois, então não deve aparecer no
- * log de alterações como se alguém tivesse feito.
- */
-export async function criarGasto(dados: NovoGasto, opcoes: { log?: boolean } = {}) {
+export async function criarGasto(dados: NovoGasto) {
   const ref = await addDoc(gastosRef, { ...dados, bloqueado_para_edicao: false });
-  if (opcoes.log !== false) await logarGasto('criacao', { id: ref.id, ...dados });
+  await logarGasto('criacao', { id: ref.id, ...dados });
   return ref;
 }
 
@@ -95,48 +89,6 @@ export async function excluirGasto(id: string) {
   }
 }
 
-/**
- * Ao abrir o app: pra cada série recorrente ativa, gera a instância do mês
- * corrente se a série ainda não tiver uma marcada pra esse mês (regra 5.1).
- * Marcado por `ultima_instancia_gerada`, não só pela existência do Gasto —
- * se o usuário excluir a instância, ela não deve ser recriada sozinha na
- * próxima vez que o app abrir. (Série antiga sem a marca ainda: se já
- * existir uma instância desse mês, só faz o backfill da marca, sem
- * duplicar.) Idempotente — seguro chamar toda vez.
- */
-export async function gerarInstanciasDoMes(series: SerieRecorrente[], hoje = new Date()) {
-  const anoMes = anoMesAtual(hoje);
-  for (const serie of series) {
-    if (serie.ultima_instancia_gerada === anoMes) continue;
-
-    const existentes = await getDocs(query(gastosRef, where('serie_id', '==', serie.id)));
-    const jaExiste = existentes.docs.some((d) => (d.data().data_lancamento as string).startsWith(anoMes));
-    if (jaExiste) {
-      await updateDoc(doc(db, 'series_recorrentes', serie.id), { ultima_instancia_gerada: anoMes });
-      continue;
-    }
-
-    const ultimoDiaDoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
-    const dia = Math.min(serie.dia_vencimento, ultimoDiaDoMes);
-    const dataLancamento = `${anoMes}-${String(dia).padStart(2, '0')}`;
-
-    const novoGasto: NovoGasto = {
-      valor: serie.valor_sugerido,
-      descricao: serie.descricao,
-      tags: serie.tags,
-      tipo: 'recorrente',
-      serie_id: serie.id,
-      pagador: null,
-      data_lancamento: dataLancamento,
-      status: 'pendente',
-      data_pagamento: null,
-      comprovante_url: null,
-    };
-    await criarGasto(novoGasto, { log: false });
-    await updateDoc(doc(db, 'series_recorrentes', serie.id), { ultima_instancia_gerada: anoMes });
-  }
-}
-
 export interface Saldo {
   /** Positivo = João deve esse valor à Daphne. Negativo = o inverso. */
   centavos: number;
@@ -150,8 +102,8 @@ export interface Saldo {
  * A === Σ contribuições de B no fim.)
  * Liquidação entra pelo valor cheio — é transferência real de dinheiro,
  * não rateio.
- * Gastos com pagador null (recorrente ainda não reivindicado por ninguém)
- * não entram — não há de quem atribuir a contribuição até alguém pagar.
+ * Gastos com pagador null (pendentes, ainda sem saber quem paga) não
+ * entram — não há de quem atribuir a contribuição até alguém pagar.
  */
 export function calcularSaldo(gastos: Gasto[], liquidacoesValores: { pagador: string; valor: number }[]): Saldo {
   let diferencaGastos = 0;

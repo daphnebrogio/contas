@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { criarTag, mesclarTags, renomearTag } from '../lib/tags';
+import { criarTag, definirCorTag, mesclarTags, renomearTag } from '../lib/tags';
+import { PALETA_TAGS, proximaCorLivre } from '../lib/cores';
 import { useTags } from '../hooks/useTags';
 import { subscribeTodosGastos } from '../lib/gastos';
 import type { Gasto } from '../types/models';
@@ -16,6 +17,9 @@ export default function Tags() {
   const [busca, setBusca] = useState('');
   const [novaTag, setNovaTag] = useState('');
   const [criando, setCriando] = useState(false);
+  const [corNova, setCorNova] = useState<string | null>(null);
+  const [corEditandoId, setCorEditandoId] = useState<string | null>(null);
+  const corNovaEfetiva = corNova ?? proximaCorLivre(tags);
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nomeEdicao, setNomeEdicao] = useState('');
@@ -30,8 +34,9 @@ export default function Tags() {
     }
     setCriando(true);
     try {
-      await criarTag(nome);
+      await criarTag(nome, corNovaEfetiva);
       setNovaTag('');
+      setCorNova(null);
     } finally {
       setCriando(false);
     }
@@ -79,19 +84,25 @@ export default function Tags() {
         <input type="text" placeholder="Buscar tag..." className="input" style={{ width: 240 }} value={busca} onChange={(e) => setBusca(e.target.value)} />
       </div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
-        <input
-          type="text"
-          placeholder="Nome da nova tag"
-          className="input"
-          style={{ maxWidth: 300 }}
-          value={novaTag}
-          onChange={(e) => setNovaTag(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), criar())}
-        />
-        <button onClick={criar} disabled={!novaTag.trim() || criando} className="btn-primary" style={{ whiteSpace: 'nowrap' }}>
-          {criando ? 'Criando…' : '+ Nova tag'}
-        </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            placeholder="Nome da nova tag"
+            className="input"
+            style={{ maxWidth: 300 }}
+            value={novaTag}
+            onChange={(e) => setNovaTag(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), criar())}
+          />
+          <button onClick={criar} disabled={!novaTag.trim() || criando} className="btn-primary" style={{ whiteSpace: 'nowrap' }}>
+            {criando ? 'Criando…' : '+ Nova tag'}
+          </button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink2)' }}>COR</span>
+          <Paleta valor={corNovaEfetiva} onChange={setCorNova} />
+        </div>
       </div>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -100,25 +111,47 @@ export default function Tags() {
         </div>
         {filtradas.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: 'var(--ink2)', fontSize: 13 }}>Nenhuma tag encontrada.</div>}
         {filtradas.map((t, i) => (
-          <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 44px', padding: '14px 20px', alignItems: 'center', borderBottom: i < filtradas.length - 1 ? '1px solid var(--border)' : 'none' }}>
-            <input type="checkbox" checked={selecionadas.includes(t.id)} onChange={() => alternarSelecao(t.id)} style={{ width: 18, height: 18, accentColor: 'var(--accent)', cursor: 'pointer' }} />
-            {editandoId === t.id ? (
-              <input
-                autoFocus
-                className="input"
-                style={{ height: 32, fontSize: 14 }}
-                value={nomeEdicao}
-                onChange={(e) => setNomeEdicao(e.target.value)}
-                onBlur={salvarEdicao}
-                onKeyDown={(e) => e.key === 'Enter' && salvarEdicao()}
-              />
-            ) : (
-              <span style={{ fontSize: 14, fontWeight: 500 }}>{t.nome}</span>
+          <div key={t.id} style={{ borderBottom: i < filtradas.length - 1 ? '1px solid var(--border)' : 'none' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 44px', padding: '14px 20px', alignItems: 'center' }}>
+              <input type="checkbox" checked={selecionadas.includes(t.id)} onChange={() => alternarSelecao(t.id)} style={{ width: 18, height: 18, accentColor: 'var(--accent)', cursor: 'pointer' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                <button
+                  type="button"
+                  aria-label={`Trocar a cor de ${t.nome}`}
+                  title="Trocar a cor"
+                  onClick={() => setCorEditandoId((atual) => (atual === t.id ? null : t.id))}
+                  style={{ width: 24, height: 24, borderRadius: '50%', background: t.cor, border: '2px solid var(--border)', padding: 0, flexShrink: 0 }}
+                />
+                {editandoId === t.id ? (
+                  <input
+                    autoFocus
+                    className="input"
+                    style={{ height: 32, fontSize: 14 }}
+                    value={nomeEdicao}
+                    onChange={(e) => setNomeEdicao(e.target.value)}
+                    onBlur={salvarEdicao}
+                    onKeyDown={(e) => e.key === 'Enter' && salvarEdicao()}
+                  />
+                ) : (
+                  <span style={{ fontSize: 14, fontWeight: 500 }}>{t.nome}</span>
+                )}
+              </div>
+              <span style={{ fontSize: 13, color: 'var(--ink2)' }}>{contagemPorTag.get(t.id) ?? 0}</span>
+              <button aria-label="Renomear tag" className="icon-btn" onClick={() => iniciarEdicao(t.id, t.nome)}>
+                <IconPencil />
+              </button>
+            </div>
+            {corEditandoId === t.id && (
+              <div style={{ padding: '0 20px 16px 72px' }}>
+                <Paleta
+                  valor={t.cor}
+                  onChange={(cor) => {
+                    definirCorTag(t.id, cor);
+                    setCorEditandoId(null);
+                  }}
+                />
+              </div>
             )}
-            <span style={{ fontSize: 13, color: 'var(--ink2)' }}>{contagemPorTag.get(t.id) ?? 0}</span>
-            <button aria-label="Renomear tag" className="icon-btn" onClick={() => iniciarEdicao(t.id, t.nome)}>
-              <IconPencil />
-            </button>
           </div>
         ))}
       </div>
@@ -139,5 +172,34 @@ function IconPencil() {
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
     </svg>
+  );
+}
+
+function Paleta({ valor, onChange }: { valor: string; onChange: (cor: string) => void }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {PALETA_TAGS.map((cor) => {
+        const ativa = cor === valor;
+        return (
+          <button
+            key={cor}
+            type="button"
+            aria-label={`Cor ${cor}`}
+            aria-pressed={ativa}
+            onClick={() => onChange(cor)}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: '50%',
+              background: cor,
+              padding: 0,
+              border: ativa ? '3px solid var(--ink)' : '3px solid transparent',
+              outline: ativa ? '1px solid var(--bg)' : 'none',
+              outlineOffset: -4,
+            }}
+          />
+        );
+      })}
+    </div>
   );
 }

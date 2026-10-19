@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { anoMesAtual, calcularSaldo, gerarInstanciasDoMes, subscribeGastosDoMes, subscribeTodosGastos } from '../lib/gastos';
-import { subscribeSeriesAtivas } from '../lib/series';
+import { anoMesAtual, calcularSaldo, subscribeGastosDoMes, subscribeTodosGastos } from '../lib/gastos';
 import { subscribeLiquidacoes } from '../lib/liquidacoes';
 import { formatBRL } from '../lib/money';
 import { UID_DAPHNE, UID_JOAO, USUARIOS, type Gasto, type Liquidacao } from '../types/models';
 import Avatar from '../components/Avatar';
 import { useTags } from '../hooks/useTags';
+import TagPill from '../components/TagPill';
 
 const NOMES_MES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -26,15 +26,6 @@ export default function Dashboard() {
   const [liquidacoes, setLiquidacoes] = useState<Liquidacao[]>([]);
   const tags = useTags();
 
-  // Ao abrir o app (mês corrente): gera instâncias de série recorrente que ainda faltam (regra 5.1).
-  useEffect(() => {
-    if (anoMes !== anoMesAtual()) return;
-    const unsub = subscribeSeriesAtivas((series) => {
-      gerarInstanciasDoMes(series);
-    });
-    return unsub;
-  }, [anoMes]);
-
   useEffect(() => subscribeGastosDoMes(anoMes, setGastos), [anoMes]);
   useEffect(() => subscribeTodosGastos(setTodosGastos), []);
   useEffect(() => subscribeLiquidacoes(setLiquidacoes), []);
@@ -47,10 +38,6 @@ export default function Dashboard() {
 
   const [ano, mesNum] = anoMes.split('-').map(Number);
   const nomeMes = `${NOMES_MES[mesNum - 1]} ${ano}`;
-
-  function tagNome(id: string) {
-    return tags.find((t) => t.id === id)?.nome ?? id;
-  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -120,12 +107,12 @@ export default function Dashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                 {g.descricao}
-                {g.tipo === 'recorrente' && <IconRepeat />}
               </span>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                {g.tags.map((t) => (
-                  <span key={t} className="tag-pill">{tagNome(t)}</span>
-                ))}
+                {g.tags.map((t) => {
+                  const tag = tags.find((x) => x.id === t);
+                  return tag ? <TagPill key={t} tag={tag} /> : null;
+                })}
               </div>
             </div>
             <Avatar uid={g.pagador} />
@@ -156,16 +143,6 @@ function IconPlus() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
-function IconRepeat() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="17 1 21 5 17 9" />
-      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-      <polyline points="7 23 3 19 7 15" />
-      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
     </svg>
   );
 }

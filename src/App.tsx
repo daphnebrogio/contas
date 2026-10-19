@@ -5,7 +5,6 @@ import Login from './screens/Login';
 import Dashboard from './screens/Dashboard';
 import CadastroGasto from './screens/CadastroGasto';
 import Historico from './screens/Historico';
-import Comparativo from './screens/Comparativo';
 import Tags from './screens/Tags';
 import Liquidacao from './screens/Liquidacao';
 import Perfil from './screens/Perfil';
@@ -28,7 +27,6 @@ export default function App() {
             <Route path="/gastos/novo" element={<CadastroGasto />} />
             <Route path="/gastos/:id" element={<CadastroGasto />} />
             <Route path="/historico" element={<Historico />} />
-            <Route path="/comparativo" element={<Comparativo />} />
             <Route path="/tags" element={<Tags />} />
             <Route path="/liquidacao" element={<Liquidacao />} />
             <Route path="/perfil" element={<Perfil />} />

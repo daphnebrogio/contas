@@ -187,11 +187,31 @@ label.field-label {
 }
 
 .tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
-  color: var(--tag-text);
+  color: var(--ink);
   background: var(--tag-bg);
-  padding: 3px 10px;
+  padding: 3px 10px 3px 8px;
   border-radius: 999px;
+}
+
+.tag-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.filtro-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  padding: 6px 14px 6px 11px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
 }
 
 .avatar {

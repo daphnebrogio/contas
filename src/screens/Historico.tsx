@@ -4,8 +4,10 @@ import { calcularSaldo, subscribeTodosGastos } from '../lib/gastos';
 import { subscribeLiquidacoes } from '../lib/liquidacoes';
 import { subscribeLogs } from '../lib/logs';
 import { formatBRL } from '../lib/money';
+import { COR_SEM_TAG } from '../lib/cores';
 import { UID_DAPHNE, UID_JOAO, USUARIOS, type Gasto, type Liquidacao, type LogAlteracao } from '../types/models';
 import { useTags } from '../hooks/useTags';
+import FiltroTags from '../components/FiltroTags';
 
 function ultimosNMeses(n: number, hoje = new Date()): string[] {
   const meses: string[] = [];
@@ -16,31 +18,12 @@ function ultimosNMeses(n: number, hoje = new Date()): string[] {
   return meses;
 }
 
-function mesesDoTrimestre(ano: number, inicioMes0: number): string[] {
-  return [0, 1, 2].map((i) => `${ano}-${String(inicioMes0 + i + 1).padStart(2, '0')}`);
-}
-
-function trimestreAnteriorE(hoje: Date) {
-  const q0 = Math.floor(hoje.getMonth() / 3) * 3;
-  const atual = mesesDoTrimestre(hoje.getFullYear(), q0);
-
-  let anoAnt = hoje.getFullYear();
-  let q0Ant = q0 - 3;
-  if (q0Ant < 0) {
-    q0Ant += 12;
-    anoAnt -= 1;
-  }
-  const anterior = mesesDoTrimestre(anoAnt, q0Ant);
-  return { atual, anterior };
-}
-
-function rotuloTrimestre(meses: string[]): string {
-  const [ano, m1] = meses[0].split('-').map(Number);
-  const q = Math.ceil(m1 / 3);
-  return `Q${q} ${ano}`;
-}
-
 const NOME_MES_CURTO = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+function rotuloMes(anoMes: string): string {
+  const [ano, mes] = anoMes.split('-').map(Number);
+  return `${NOME_MES_CURTO[mes - 1]} ${ano}`;
+}
 
 const ROTULO_ACAO: Record<LogAlteracao['acao'], string> = {
   criacao: 'criou',
@@ -56,60 +39,73 @@ export default function Historico() {
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [liquidacoes, setLiquidacoes] = useState<Liquidacao[]>([]);
   const [logs, setLogs] = useState<LogAlteracao[]>([]);
-  const [tagFiltro, setTagFiltro] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState<string[]>([]);
   const tags = useTags();
 
   useEffect(() => subscribeTodosGastos(setGastos), []);
   useEffect(() => subscribeLiquidacoes(setLiquidacoes), []);
   useEffect(() => subscribeLogs(setLogs), []);
 
+  const tagPorId = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
+  function infoTag(id: string) {
+    const t = tagPorId.get(id);
+    return { nome: t?.nome ?? id, cor: t?.cor ?? COR_SEM_TAG };
+  }
+
+  // O saldo é sempre o do casal inteiro; só os relatórios abaixo obedecem ao filtro.
   const saldo = calcularSaldo(gastos, liquidacoes).centavos;
+
+  // Gasto entra se tiver QUALQUER uma das tags marcadas.
+  const gastosFiltrados = useMemo(
+    () => (filtro.length === 0 ? gastos : gastos.filter((g) => g.tags.some((t) => filtro.includes(t)))),
+    [gastos, filtro],
+  );
 
   const totaisPorTag = useMemo(() => {
     const mapa = new Map<string, number>();
-    for (const g of gastos) {
+    for (const g of gastosFiltrados) {
       for (const t of g.tags) mapa.set(t, (mapa.get(t) ?? 0) + g.valor);
     }
-    return [...mapa.entries()].sort((a, b) => b[1] - a[1]);
-  }, [gastos]);
+    return [...mapa.entries()].filter(([id]) => filtro.length === 0 || filtro.includes(id)).sort((a, b) => b[1] - a[1]);
+  }, [gastosFiltrados, filtro]);
   const maiorTotal = totaisPorTag[0]?.[1] ?? 1;
 
   const meses = useMemo(() => ultimosNMeses(6), []);
   const totalPorMes = useMemo(
-    () => meses.map((m) => gastos.filter((g) => g.data_lancamento.startsWith(m)).reduce((s, g) => s + g.valor, 0)),
-    [gastos, meses],
+    () => meses.map((m) => gastosFiltrados.filter((g) => g.data_lancamento.startsWith(m)).reduce((s, g) => s + g.valor, 0)),
+    [gastosFiltrados, meses],
   );
   const totaisPorMesPorPagador = useMemo(
     () =>
       meses.map((m) => {
-        const doMes = gastos.filter((g) => g.data_lancamento.startsWith(m));
+        const doMes = gastosFiltrados.filter((g) => g.data_lancamento.startsWith(m));
         return {
           daphne: doMes.filter((g) => g.pagador === UID_DAPHNE).reduce((s, g) => s + g.valor, 0),
           joao: doMes.filter((g) => g.pagador === UID_JOAO).reduce((s, g) => s + g.valor, 0),
           semPagador: doMes.filter((g) => g.pagador === null).reduce((s, g) => s + g.valor, 0),
         };
       }),
-    [gastos, meses],
+    [gastosFiltrados, meses],
   );
   const media = totalPorMes.reduce((s, v) => s + v, 0) / (totalPorMes.length || 1);
   const maiorMes = Math.max(...totalPorMes, 1);
   const mesAtual = meses[meses.length - 1];
+  const mesAnterior = meses[meses.length - 2];
 
-  const { atual: trimAtual, anterior: trimAnterior } = useMemo(() => trimestreAnteriorE(new Date()), []);
-  const comparativoTrimestral = useMemo(() => {
-    function somaPorTag(meses: string[]) {
+  const comparativoMensal = useMemo(() => {
+    function somaPorTag(mes: string) {
       const mapa = new Map<string, number>();
-      for (const g of gastos) {
-        if (!meses.includes(g.data_lancamento.slice(0, 7))) continue;
+      for (const g of gastosFiltrados) {
+        if (!g.data_lancamento.startsWith(mes)) continue;
         for (const t of g.tags) mapa.set(t, (mapa.get(t) ?? 0) + g.valor);
       }
       return mapa;
     }
-    const somaAtual = somaPorTag(trimAtual);
-    const somaAnterior = somaPorTag(trimAnterior);
-    const tagIds = new Set([...somaAtual.keys(), ...somaAnterior.keys()]);
+    const somaAtual = somaPorTag(mesAtual);
+    const somaAnterior = somaPorTag(mesAnterior);
+    const tagIds = [...new Set([...somaAtual.keys(), ...somaAnterior.keys()])].filter((id) => filtro.length === 0 || filtro.includes(id));
 
-    return [...tagIds]
+    return tagIds
       .map((tagId) => {
         const valorAtual = somaAtual.get(tagId) ?? 0;
         const valorAnterior = somaAnterior.get(tagId) ?? 0;
@@ -117,21 +113,13 @@ export default function Historico() {
         return { tagId, valorAtual, valorAnterior, variacao };
       })
       .sort((a, b) => b.valorAtual - a.valorAtual);
-  }, [gastos, trimAtual, trimAnterior]);
-  const maiorTrimestre = Math.max(...comparativoTrimestral.flatMap((l) => [l.valorAtual, l.valorAnterior]), 1);
+  }, [gastosFiltrados, filtro, mesAtual, mesAnterior]);
+  const maiorComparativo = Math.max(...comparativoMensal.flatMap((l) => [l.valorAtual, l.valorAnterior]), 1);
 
   const timeline = useMemo(
-    () =>
-      gastos
-        .filter((g) => !tagFiltro || g.tags.includes(tagFiltro))
-        .sort((a, b) => (a.data_lancamento < b.data_lancamento ? 1 : -1))
-        .slice(0, 30),
-    [gastos, tagFiltro],
+    () => [...gastosFiltrados].sort((a, b) => (a.data_lancamento < b.data_lancamento ? 1 : -1)).slice(0, 30),
+    [gastosFiltrados],
   );
-
-  function tagNome(id: string) {
-    return tags.find((t) => t.id === id)?.nome ?? id;
-  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
@@ -154,29 +142,12 @@ export default function Historico() {
         </span>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink2)', marginRight: 4 }}>FILTRAR POR TAG</span>
-        <button
-          onClick={() => setTagFiltro(null)}
-          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 999, border: 'none', background: !tagFiltro ? 'var(--accent)' : 'var(--surface)', color: !tagFiltro ? 'var(--accent-ink)' : 'var(--ink)' }}
-        >
-          Todos
-        </button>
-        {tags.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTagFiltro(t.id)}
-            style={{ fontSize: 12, padding: '6px 14px', borderRadius: 999, border: '1px solid var(--border)', background: tagFiltro === t.id ? 'var(--accent)' : 'var(--surface)', color: tagFiltro === t.id ? 'var(--accent-ink)' : 'var(--ink)' }}
-          >
-            {t.nome}
-          </button>
-        ))}
-      </div>
+      <FiltroTags tags={tags} selecionadas={filtro} onChange={setFiltro} />
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink2)' }}>GASTO TOTAL POR MÊS</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12, color: 'var(--ink2)', display: 'flex', alignItems: 'center', gap: 5 }}>
               <span style={{ width: 9, height: 9, borderRadius: 3, background: 'var(--daphne)', display: 'inline-block' }} />
               {USUARIOS[UID_DAPHNE].nome}
@@ -212,77 +183,96 @@ export default function Historico() {
             );
           })}
         </div>
-        <span style={{ fontSize: 11, color: 'var(--ink2)' }}>Linha tracejada = média do período. Cinza = gasto recorrente ainda sem pagador definido.</span>
+        <span style={{ fontSize: 11, color: 'var(--ink2)' }}>Linha tracejada = média do período. Cinza = gasto sem pagador definido.</span>
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink2)' }}>COMPARATIVO TRIMESTRAL POR CATEGORIA</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink2)' }}>COMPARATIVO POR CATEGORIA</span>
           <div style={{ display: 'flex', gap: 14, alignItems: 'center', fontSize: 12, color: 'var(--ink2)' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: 'var(--muted-fill)' }} /> {rotuloTrimestre(trimAnterior)}
+              <span style={{ width: 10, height: 10, borderRadius: 3, background: 'var(--ink2)', opacity: 0.4 }} /> {rotuloMes(mesAnterior)}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: 'var(--accent)' }} /> {rotuloTrimestre(trimAtual)}
+              <span style={{ width: 10, height: 10, borderRadius: 3, background: 'var(--ink2)' }} /> {rotuloMes(mesAtual)}
             </span>
           </div>
         </div>
-        {comparativoTrimestral.length === 0 && <span style={{ fontSize: 13, color: 'var(--ink2)' }}>Sem dados suficientes ainda pra comparar.</span>}
-        {comparativoTrimestral.map((l) => (
-          <div key={l.tagId} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={{ fontSize: 14, fontWeight: 600 }}>{tagNome(l.tagId)}</span>
-              {l.variacao !== null && (
-                <span
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    padding: '3px 10px',
-                    borderRadius: 999,
-                    color: l.variacao > 0 ? 'var(--neg)' : 'var(--accent)',
-                    background: l.variacao > 0 ? 'var(--neg-soft)' : 'var(--accent-soft)',
-                  }}
-                >
-                  {l.variacao > 0 ? '↑' : '↓'} {Math.abs(Math.round(l.variacao))}%
+        {comparativoMensal.length === 0 && <span style={{ fontSize: 13, color: 'var(--ink2)' }}>Sem dados suficientes ainda pra comparar.</span>}
+        {comparativoMensal.map((l) => {
+          const { nome, cor } = infoTag(l.tagId);
+          return (
+            <div key={l.tagId} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="tag-dot" style={{ background: cor }} />
+                  {nome}
                 </span>
-              )}
+                {l.variacao !== null && (
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: '3px 10px',
+                      borderRadius: 999,
+                      color: l.variacao > 0 ? 'var(--neg)' : 'var(--accent)',
+                      background: l.variacao > 0 ? 'var(--neg-soft)' : 'var(--accent-soft)',
+                    }}
+                  >
+                    {l.variacao > 0 ? '↑' : '↓'} {Math.abs(Math.round(l.variacao))}%
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <div style={{ width: `${(l.valorAnterior / maiorComparativo) * 100}%`, height: 20, background: cor, opacity: 0.4, borderRadius: 4, minWidth: 2 }} />
+                <span className="money" style={{ fontSize: 12, color: 'var(--ink2)', width: 90 }}>{formatBRL(l.valorAnterior)}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <div style={{ width: `${(l.valorAtual / maiorComparativo) * 100}%`, height: 20, background: cor, borderRadius: 4, minWidth: 2 }} />
+                <span className="money" style={{ fontSize: 12, color: 'var(--ink2)', width: 90 }}>{formatBRL(l.valorAtual)}</span>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <div style={{ width: `${(l.valorAnterior / maiorTrimestre) * 100}%`, height: 20, background: 'var(--muted-fill)', borderRadius: 4, minWidth: 2 }} />
-              <span className="money" style={{ fontSize: 12, color: 'var(--ink2)', width: 90 }}>{formatBRL(l.valorAnterior)}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <div style={{ width: `${(l.valorAtual / maiorTrimestre) * 100}%`, height: 20, background: 'var(--accent)', borderRadius: 4, minWidth: 2 }} />
-              <span className="money" style={{ fontSize: 12, color: 'var(--ink2)', width: 90 }}>{formatBRL(l.valorAtual)}</span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
         <div className="card" style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink2)' }}>VALORES AGREGADOS POR CATEGORIA</span>
           {totaisPorTag.length === 0 && <span style={{ fontSize: 13, color: 'var(--ink2)' }}>Sem gastos categorizados ainda.</span>}
-          {totaisPorTag.map(([tagId, soma]) => (
-            <div key={tagId} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span>{tagNome(tagId)}</span>
-                <span className="money" style={{ fontWeight: 600 }}>{formatBRL(soma)}</span>
+          {totaisPorTag.map(([tagId, soma]) => {
+            const { nome, cor } = infoTag(tagId);
+            return (
+              <div key={tagId} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className="tag-dot" style={{ background: cor }} />
+                    {nome}
+                  </span>
+                  <span className="money" style={{ fontWeight: 600 }}>{formatBRL(soma)}</span>
+                </div>
+                <div style={{ height: 8, background: 'var(--bg)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ width: `${(soma / maiorTotal) * 100}%`, height: '100%', background: cor }} />
+                </div>
               </div>
-              <div style={{ height: 8, background: 'var(--bg)', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ width: `${(soma / maiorTotal) * 100}%`, height: '100%', background: 'var(--accent)' }} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="card" style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 400, overflowY: 'auto' }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink2)' }}>LINHA DO TEMPO</span>
           {timeline.length === 0 && <span style={{ fontSize: 13, color: 'var(--ink2)' }}>Nada por aqui ainda.</span>}
           {timeline.map((g) => (
-            <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-              <span>{g.descricao} · {g.pagador ? USUARIOS[g.pagador].nome : '—'}</span>
-              <span className="money" style={{ fontWeight: 600 }}>{formatBRL(g.valor)}</span>
+            <div key={g.id} style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
+              <div style={{ width: 4, borderRadius: 2, overflow: 'hidden', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+                {(g.tags.length > 0 ? g.tags : [null]).map((t, i) => (
+                  <div key={i} style={{ flex: 1, background: t ? infoTag(t).cor : COR_SEM_TAG }} />
+                ))}
+              </div>
+              <div style={{ flexGrow: 1, display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13 }}>
+                <span>{g.descricao} · {g.pagador ? USUARIOS[g.pagador].nome : '—'}</span>
+                <span className="money" style={{ fontWeight: 600 }}>{formatBRL(g.valor)}</span>
+              </div>
             </div>
           ))}
         </div>

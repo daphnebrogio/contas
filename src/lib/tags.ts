@@ -1,7 +1,6 @@
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
   getDocs,
   orderBy,
@@ -19,12 +18,16 @@ const tagsRef = collection(db, 'tags');
 export function subscribeTags(cb: (tags: Tag[]) => void) {
   const q = query(tagsRef, orderBy('nome'));
   return escutar('tags', q, (snap) => {
-    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Tag, 'id'>) })));
+    cb(snap.docs.map((d) => ({ id: d.id, nome: d.data().nome as string, cor: (d.data().cor as string | undefined) ?? '' })));
   });
 }
 
-export async function criarTag(nome: string) {
-  await addDoc(tagsRef, { nome: nome.trim() });
+export async function criarTag(nome: string, cor: string) {
+  await addDoc(tagsRef, { nome: nome.trim(), cor });
+}
+
+export async function definirCorTag(id: string, cor: string) {
+  await updateDoc(doc(db, 'tags', id), { cor });
 }
 
 export async function renomearTag(id: string, nome: string) {
@@ -49,8 +52,4 @@ export async function mesclarTags(origemId: string, destinoId: string) {
   });
   batch.delete(doc(db, 'tags', origemId));
   await batch.commit();
-}
-
-export async function excluirTag(id: string) {
-  await deleteDoc(doc(db, 'tags', id));
 }

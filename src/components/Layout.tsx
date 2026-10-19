@@ -9,7 +9,6 @@ import { UID_JOAO, USUARIOS } from '../types/models';
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard' },
   { to: '/historico', label: 'Histórico' },
-  { to: '/comparativo', label: 'Comparativo' },
   { to: '/liquidacao', label: 'Liquidação' },
   { to: '/perfil', label: 'Perfil' },
 ];
