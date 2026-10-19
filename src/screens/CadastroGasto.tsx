@@ -9,6 +9,7 @@ import { dataLocalISO, mesDe } from '../lib/datas';
 import { useTags } from '../hooks/useTags';
 import MoneyInput from '../components/MoneyInput';
 import Avatar from '../components/Avatar';
+import Segmented from '../components/Segmented';
 import { UID_DAPHNE, UID_JOAO, USUARIOS, type Gasto, type StatusGasto } from '../types/models';
 
 const hoje = () => dataLocalISO();
@@ -313,39 +314,6 @@ export default function CadastroGasto() {
           </div>
         )}
       </form>
-    </div>
-  );
-}
-
-function Segmented({
-  options,
-  value,
-  onChange,
-}: {
-  options: { value: string; label: string }[];
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', width: 'fit-content' }}>
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          onClick={() => onChange(o.value)}
-          style={{
-            padding: '9px 18px',
-            fontSize: 13,
-            fontWeight: 600,
-            border: 'none',
-            cursor: 'pointer',
-            background: value === o.value ? 'var(--accent)' : 'var(--surface)',
-            color: value === o.value ? 'var(--accent-ink)' : 'var(--ink)',
-          }}
-        >
-          {o.label}
-        </button>
-      ))}
     </div>
   );
 }

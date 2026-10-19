@@ -9,7 +9,6 @@ import { UID_JOAO, USUARIOS } from '../types/models';
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard' },
   { to: '/historico', label: 'Histórico' },
-  { to: '/liquidacao', label: 'Liquidação' },
   { to: '/perfil', label: 'Perfil' },
 ];
 
@@ -99,10 +98,6 @@ export default function Layout() {
         <NavLink to="/gastos/novo" className="fab" aria-label="Novo gasto">
           <IconPlus />
         </NavLink>
-        <NavLink to="/liquidacao" className={({ isActive }) => (isActive ? 'active' : '')}>
-          <IconSwap />
-          Acerto
-        </NavLink>
         <NavLink to="/perfil" className={({ isActive }) => (isActive ? 'active' : '')}>
           <IconUser />
           Perfil
@@ -125,16 +120,6 @@ function IconClock() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
-function IconSwap() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="17 1 21 5 17 9" />
-      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-      <polyline points="7 23 3 19 7 15" />
-      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
     </svg>
   );
 }

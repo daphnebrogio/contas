@@ -37,7 +37,7 @@ export default function LiquidacaoScreen() {
     setConfirmando(true);
     try {
       await confirmarLiquidacao({ pagador, valor, data, saldo_antes: saldo });
-      navigate('/');
+      navigate('/historico');
     } finally {
       setConfirmando(false);
     }
@@ -91,7 +91,7 @@ export default function LiquidacaoScreen() {
           <button onClick={confirmar} disabled={!pagador || valor <= 0 || confirmando} className="btn-primary">
             {confirmando ? 'Confirmando…' : `Confirmar Pix de ${formatBRL(valor)}`}
           </button>
-          <button onClick={() => navigate('/')} className="btn-secondary">Cancelar</button>
+          <button onClick={() => navigate('/historico')} className="btn-secondary">Cancelar</button>
         </div>
 
         <span style={{ fontSize: 12, color: 'var(--ink2)', lineHeight: 1.6, borderTop: '1px solid var(--border)', paddingTop: 16 }}>

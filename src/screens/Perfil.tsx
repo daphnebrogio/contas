@@ -72,8 +72,6 @@ export default function Perfil() {
               {meuSaldo === 0 ? 'Tudo certo entre vocês' : meuSaldo > 0 ? `${outroNome} te deve esse valor` : `Você deve esse valor a ${outroNome}`}
             </span>
           </div>
-
-          <Link to="/liquidacao" className="btn-primary" style={{ width: '100%' }}>Acertar via Pix</Link>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { calcularSaldo, subscribeTodosGastos } from '../lib/gastos';
 import { subscribeLiquidacoes } from '../lib/liquidacoes';
 import { subscribeLogs } from '../lib/logs';
@@ -9,6 +9,15 @@ import { mesDe } from '../lib/datas';
 import { UID_DAPHNE, UID_JOAO, USUARIOS, type Gasto, type Liquidacao, type LogAlteracao } from '../types/models';
 import { useTags } from '../hooks/useTags';
 import FiltroTags from '../components/FiltroTags';
+import Segmented from '../components/Segmented';
+
+type Visao = 'referencia' | 'pagamento';
+
+/** Mês ("YYYY-MM") em que o gasto conta na visão escolhida; null = fica fora dela (pagamento sem data). */
+function mesNaVisao(g: Gasto, visao: Visao): string | null {
+  if (visao === 'referencia') return mesDe(g);
+  return g.status === 'pago' && g.data_pagamento ? g.data_pagamento.slice(0, 7) : null;
+}
 
 function ultimosNMeses(n: number, hoje = new Date()): string[] {
   const meses: string[] = [];
@@ -46,6 +55,10 @@ export default function Historico() {
   const [logs, setLogs] = useState<LogAlteracao[]>([]);
   const [filtro, setFiltro] = useState<string[]>([]);
   const tags = useTags();
+  const [params, setParams] = useSearchParams();
+  const { pathname, search } = useLocation();
+  const visao: Visao = params.get('visao') === 'pagamento' ? 'pagamento' : 'referencia';
+  const mudarVisao = (v: Visao) => setParams(v === 'pagamento' ? { visao: 'pagamento' } : {}, { replace: true });
 
   useEffect(() => subscribeTodosGastos(setGastos), []);
   useEffect(() => subscribeLiquidacoes(setLiquidacoes), []);
@@ -66,50 +79,65 @@ export default function Historico() {
     [gastos, filtro],
   );
 
+  // Na visão por pagamento, gasto sem data de pagamento (pendente) não entra em nenhum relatório.
+  const gastosNaVisao = useMemo(() => gastosFiltrados.filter((g) => mesNaVisao(g, visao) !== null), [gastosFiltrados, visao]);
+  const foraDaVisao = gastosFiltrados.length - gastosNaVisao.length;
+
   const totaisPorTag = useMemo(() => {
     const mapa = new Map<string, number>();
-    for (const g of gastosFiltrados) {
+    for (const g of gastosNaVisao) {
       for (const t of g.tags) mapa.set(t, (mapa.get(t) ?? 0) + g.valor);
     }
     return [...mapa.entries()].filter(([id]) => filtro.length === 0 || filtro.includes(id)).sort((a, b) => b[1] - a[1]);
-  }, [gastosFiltrados, filtro]);
+  }, [gastosNaVisao, filtro]);
   const maiorTotal = totaisPorTag[0]?.[1] ?? 1;
 
   const meses = useMemo(() => ultimosNMeses(6), []);
   const totalPorMes = useMemo(
-    () => meses.map((m) => gastosFiltrados.filter((g) => mesDe(g) === m).reduce((s, g) => s + g.valor, 0)),
-    [gastosFiltrados, meses],
+    () => meses.map((m) => gastosNaVisao.filter((g) => mesNaVisao(g, visao) === m).reduce((s, g) => s + g.valor, 0)),
+    [gastosNaVisao, meses, visao],
   );
   const totaisPorMesPorPagador = useMemo(
     () =>
       meses.map((m) => {
-        const doMes = gastosFiltrados.filter((g) => mesDe(g) === m);
+        const doMes = gastosNaVisao.filter((g) => mesNaVisao(g, visao) === m);
         return {
           daphne: doMes.filter((g) => g.pagador === UID_DAPHNE).reduce((s, g) => s + g.valor, 0),
           joao: doMes.filter((g) => g.pagador === UID_JOAO).reduce((s, g) => s + g.valor, 0),
           semPagador: doMes.filter((g) => g.pagador === null).reduce((s, g) => s + g.valor, 0),
         };
       }),
-    [gastosFiltrados, meses],
+    [gastosNaVisao, meses, visao],
   );
   const media = totalPorMes.reduce((s, v) => s + v, 0) / (totalPorMes.length || 1);
   const maiorMes = Math.max(...totalPorMes, 1);
   const mesAtual = meses[meses.length - 1];
 
-
-  const timeline = useMemo(
-    () =>
-      [...gastosFiltrados]
-        .sort((a, b) =>
-          mesDe(a) !== mesDe(b) ? (mesDe(a) < mesDe(b) ? 1 : -1) : a.data_lancamento < b.data_lancamento ? 1 : -1,
-        )
-        .slice(0, 30),
-    [gastosFiltrados],
-  );
+  const timeline = useMemo(() => {
+    const chave = (g: Gasto) => (visao === 'pagamento' ? (g.data_pagamento ?? '') : mesDe(g));
+    return [...gastosNaVisao]
+      .sort((a, b) => (chave(a) !== chave(b) ? (chave(a) < chave(b) ? 1 : -1) : a.data_lancamento < b.data_lancamento ? 1 : -1))
+      .slice(0, 30);
+  }, [gastosNaVisao, visao]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-      <h2 style={{ fontSize: 24 }}>Histórico acumulado</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <h2 style={{ fontSize: 24 }}>Histórico acumulado</h2>
+        <Segmented
+          options={[
+            { value: 'referencia', label: 'Mês de referência' },
+            { value: 'pagamento', label: 'Data de pagamento' },
+          ]}
+          value={visao}
+          onChange={(v) => mudarVisao(v as Visao)}
+        />
+      </div>
+      <span style={{ fontSize: 12, color: 'var(--ink2)', marginTop: -10 }}>
+        {visao === 'referencia'
+          ? 'Os meses abaixo seguem o mês a que cada conta se refere.'
+          : `Os meses abaixo seguem a data em que cada conta foi paga.${foraDaVisao > 0 ? ` ${foraDaVisao} ${foraDaVisao === 1 ? 'gasto sem' : 'gastos sem'} data de pagamento (pendentes) ${foraDaVisao === 1 ? 'fica' : 'ficam'} fora desta visão.` : ''}`}
+      </span>
 
       <div className="card" style={{ background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -132,7 +160,7 @@ export default function Historico() {
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink2)' }}>GASTO TOTAL POR MÊS</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink2)' }}>{visao === 'referencia' ? 'GASTO TOTAL POR MÊS DE REFERÊNCIA' : 'GASTO TOTAL POR MÊS DE PAGAMENTO'}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12, color: 'var(--ink2)', display: 'flex', alignItems: 'center', gap: 5 }}>
               <span style={{ width: 9, height: 9, borderRadius: 3, background: 'var(--daphne)', display: 'inline-block' }} />
@@ -202,7 +230,7 @@ export default function Historico() {
             <Link
               key={g.id}
               to={`/gastos/${g.id}`}
-              state={{ voltarPara: '/historico' }}
+              state={{ voltarPara: `${pathname}${search}` }}
               className="row-link"
               style={{ display: 'flex', gap: 10, alignItems: 'stretch', padding: '6px 8px', margin: '-6px -8px', borderRadius: 8 }}
             >
@@ -212,7 +240,15 @@ export default function Historico() {
                 ))}
               </div>
               <div style={{ flexGrow: 1, display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13 }}>
-                <span>{g.descricao} · {g.pagador ? USUARIOS[g.pagador].nome : '—'}</span>
+                <span>
+                  {g.descricao} · {g.pagador ? USUARIOS[g.pagador].nome : '—'}
+                  <span style={{ color: 'var(--ink2)' }}>
+                    {' · '}
+                    {visao === 'pagamento' && g.data_pagamento
+                      ? `pago em ${new Date(g.data_pagamento + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
+                      : `ref. ${rotuloMesRef(mesDe(g))}`}
+                  </span>
+                </span>
                 <span className="money" style={{ fontWeight: 600 }}>{formatBRL(g.valor)}</span>
               </div>
             </Link>
